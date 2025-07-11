@@ -3,8 +3,7 @@ import re
 import requests
 from typing import Callable
 
-LINK_REGEX = r'^https://www\.marches-publics\.gouv\.fr/app\.php/entreprise/consultation/([\d]+)\?orgAcronyme=([\da-z]+)$'
-
+from openplace.tasks.scrape.patterns import LINK_REGEX, PAGE_STATE_REGEX
 logger = logging.getLogger(__name__)
 
 def fetch_posting_page(link_posting: str) -> tuple[str, str, requests.Response]:
@@ -12,10 +11,10 @@ def fetch_posting_page(link_posting: str) -> tuple[str, str, requests.Response]:
     Validate the link_posting using the provided regex, log the process, and fetch the page.
 
     Args:
-        link_posting (str): The URL of the DCE to process.
+        link_posting (str): The URL of the PLACE public market posting.
 
     Returns:
-        Tuple[str, str, requests.Response]: annonce_id, org_acronym, and the HTTP response object.
+        Tuple[str, str, requests.Response]: posting_id, org_acronym, and the HTTP response object.
 
     Raises:
         ValueError: If the link does not match the expected format or the page fetch fails.
@@ -24,8 +23,8 @@ def fetch_posting_page(link_posting: str) -> tuple[str, str, requests.Response]:
     if not match:
         logger.error(f"Link does not match expected format: {link_posting}")
         raise ValueError(f"Link does not match expected format: {link_posting}")
-    annonce_id, org_acronym = match.groups()
-    logger.debug(f"Extracted annonce_id={annonce_id}, org_acronym={org_acronym} from link.")
+    posting_id, org_acronym = match.groups()
+    logger.debug(f"Extracted posting_id={posting_id}, org_acronym={org_acronym} from link.")
 
     try:
         response = requests.get(link_posting, allow_redirects=False, timeout=600)
@@ -38,7 +37,7 @@ def fetch_posting_page(link_posting: str) -> tuple[str, str, requests.Response]:
         raise ValueError(f"Failed to fetch page: {link_posting} (status {response.status_code})")
 
     logger.debug(f"Successfully fetched page: {link_posting} (status {response.status_code})")
-    return annonce_id, org_acronym, response
+    return posting_id, org_acronym, response
 
 def is_zip_file(response: requests.Response) -> bool:
     # a few DCE have "Content-Type: application/octet-stream" even though they are zip files
@@ -48,11 +47,10 @@ def is_zip_file(response: requests.Response) -> bool:
     )
 
 def fetch_dce_file(
-    annonce_id: str,
+    posting_id: str,
     org_acronym: str,
-    link_dce: str,
-    write_response_to_file: Callable[[str, str, str, requests.Response], int],
-    PAGE_STATE_REGEX: str,
+    file_writer: Callable[[str, str, str, requests.Response], int],
+    page_state_regex: str = PAGE_STATE_REGEX,
 ) -> tuple[str | None, int | None]:
     """
     Fetch the Dossier de Consultation aux Entreprises (DCE) file by navigating the required pages.
@@ -71,18 +69,15 @@ def fetch_dce_file(
         AssertionError: If any of the HTTP requests fail.
         ValueError: If required headers or page state cannot be extracted.
     """
-    if not link_dce:
-        return None, None
-
     url_dce = (
         f'https://www.marches-publics.gouv.fr/index.php?page=Entreprise.EntrepriseDemandeTelechargementDce'
-        f'&id={annonce_id}&orgAcronyme={org_acronym}'
+        f'&id={posting_id}&orgAcronyme={org_acronym}'
     )
 
     # Step 1: Initial GET request to get page state and cookie
     response_dce = requests.get(url_dce, allow_redirects=False, timeout=600)
     assert response_dce.status_code == 200, f"Initial DCE GET failed: {response_dce.status_code}"
-    match_page_state = re.search(PAGE_STATE_REGEX, response_dce.text)
+    match_page_state = re.search(page_state_regex, response_dce.text)
     if not match_page_state:
         logger.error("Could not extract PRADO_PAGESTATE from initial DCE page.")
         raise ValueError("Could not extract PRADO_PAGESTATE from initial DCE page.")
@@ -102,7 +97,7 @@ def fetch_dce_file(
         url_dce, headers={'Cookie': cookie}, data=data_validate, allow_redirects=False, timeout=600
     )
     assert response_after_validation.status_code == 200, f"ValidateButton POST failed: {response_after_validation.status_code}"
-    match_page_state_after_validation = re.search(PAGE_STATE_REGEX, response_after_validation.text)
+    match_page_state_after_validation = re.search(page_state_regex, response_after_validation.text)
     if not match_page_state_after_validation:
         logger.error("Could not extract PRADO_PAGESTATE from validateButton POST response.")
         raise ValueError("Could not extract PRADO_PAGESTATE from validateButton POST response.")
@@ -130,15 +125,14 @@ def fetch_dce_file(
         raise ValueError("Could not extract filename from Content-Disposition header.")
     filename_dce = match_filename.groups()[0]
 
-    file_size_dce = write_response_to_file(
-        annonce_id,
+    file_size_dce = file_writer(
+        posting_id,
         filename_dce,
         'dce',
         response_after_download,
     )
 
     return filename_dce, file_size_dce
-
 
 def fetch_reglement_file(
     annonce_id: str,
@@ -274,3 +268,70 @@ def fetch_avis_file(
     )
     logger.info("Avis file saved: %s (%d bytes) for annonce_id=%s.", filename_avis, file_size_avis, annonce_id)
     return filename_avis, file_size_avis
+
+
+class PostingFileFetcher:  
+    def __init__(self, posting_id: str, org_acronym: str, file_writer: Callable[[str, str, str, requests.Response], int]):
+        self.posting_id = posting_id
+        self.org_acronym = org_acronym
+        self.file_writer = file_writer
+
+    @staticmethod
+    def dce(
+        posting_id: str,
+        org_acronym: str,
+        file_writer: Callable[[str, str, str, requests.Response], int],
+        page_state_regex: str = PAGE_STATE_REGEX,
+    ) -> tuple[str | None, int | None]:
+        return fetch_dce_file(posting_id, org_acronym, file_writer, page_state_regex)
+    
+    @staticmethod
+    def reglement(
+        posting_id: str,
+        link_reglement: str,
+        write_response_to_file: Callable[[str, str, str, requests.Response], int],
+    ) -> tuple[str | None, int | None]:
+        return fetch_reglement_file(posting_id, link_reglement, write_response_to_file)
+    
+    @staticmethod
+    def complement(
+        posting_id: str,
+        link_complement: str,
+        write_response_to_file: Callable[[str, str, str, requests.Response], int],
+    ) -> tuple[str | None, int | None]:
+        return fetch_complement_file(posting_id, link_complement, write_response_to_file)
+    
+    @staticmethod
+    def avis(
+        posting_id: str,
+        link_avis: str,
+        write_response_to_file: Callable[[str, str, str, requests.Response], int],
+    ) -> tuple[str | None, int | None]:
+        return fetch_avis_file(posting_id, link_avis, write_response_to_file)
+
+    def __call__(self, kind: str, link: str) -> tuple[str | None, int | None]:
+        """
+        Fetch a file from the posting. Can fetch DCE, reglement, complement, or avis.
+
+        Args:
+            kind (str): The kind of file to fetch. Can be 'dce', 'reglement', 'complement', or 'avis'.
+            link (str): The link to the file to fetch.
+
+        Returns:
+            tuple[str | None, int | None]: The filename and file size of the file, or (None, None) if not found.
+        """
+        if kind not in ['dce', 'reglement', 'complement', 'avis']:
+            raise ValueError(f"Unknown file kind: {kind}")
+        
+        if kind == 'dce':
+            return self.dce(self.posting_id, self.org_acronym, self.file_writer)
+        elif kind == 'reglement':
+            return self.reglement(self.posting_id, link, self.file_writer)
+        elif kind == 'complement':
+            return self.complement(self.posting_id, link, self.file_writer)
+        elif kind == 'avis':
+            return self.avis(self.posting_id, link, self.file_writer)
+        else:
+            raise ValueError(f"Unknown file kind: {kind}")
+
+        

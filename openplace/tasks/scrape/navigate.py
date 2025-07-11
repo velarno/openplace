@@ -7,7 +7,7 @@ from openplace.tasks.scrape.patterns import URL_SEARCH, PAGE_STATE_REGEX, LINK_R
 
 logger = logging.getLogger(__name__)
 
-class PageBatchGenerator:
+class PlacePostingIterator:
     """
     Generator object that lazily fetches batches of deduplicated links from paginated search results.
     Maintains and updates its state (page_state, cookie, previous_links) as attributes.
@@ -154,10 +154,3 @@ class PageBatchGenerator:
                 break
             yield batch
             count += 1
-
-
-
-if __name__ == "__main__":
-    generator = PageBatchGenerator()
-    for links in generator.iter_n_batches(10):
-        print(links)

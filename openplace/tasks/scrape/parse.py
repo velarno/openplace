@@ -35,40 +35,47 @@ def extract_field(info_sections: list[Tag], idx: int, label: str) -> str:
         raise ValueError(f"Value for label '{label}' not found.")
     return value.text.strip()
 
-def parse_posting_info(soup: BeautifulSoup) -> Dict[str, Any]:
+def parse_posting_info(content: BeautifulSoup | requests.Response) -> Dict[str, Any]:
     """
-    Parse the posting information from the given BeautifulSoup object.
+    Parse the posting information from the given BeautifulSoup object or requests.Response.
 
     Args:
-        soup (BeautifulSoup): The BeautifulSoup object containing the HTML page.
+        content (BeautifulSoup | requests.Response): The BeautifulSoup object or requests.Response containing the HTML page.
 
     Returns:
-        Dict[str, Any]: A dictionary with keys 'reference', 'intitule', 'objet', and 'organisme'.
+        Dict[str, Any]: A dictionary with keys 'reference', 'title', 'description', and 'organization'.
 
     Raises:
         AssertionError: If the expected labels are not found in the HTML.
     """
-    info_sections = soup.find_all(class_="col-md-10 text-justify")
+    if isinstance(content, requests.Response):
+        content = BeautifulSoup(content.text, 'html.parser')
+
+    info_sections = content.find_all(class_="col-md-10 text-justify")
 
     logger.debug("Found %d info_sections elements.", len(info_sections))
+
+    print([type(t) for t in info_sections])
+
+    print(info_sections)
 
     reference = extract_field(info_sections, 0, "Référence :")
     logger.debug("Extracted reference: %s", reference)
 
-    intitule = extract_field(info_sections, 1, "Intitulé :")
-    logger.debug("Extracted intitule: %s", intitule)
+    title = extract_field(info_sections, 1, "Intitulé :")
+    logger.debug("Extracted title: %s", title)
 
-    objet = extract_field(info_sections, 2, "Objet :")
-    logger.debug("Extracted objet: %s", objet)
+    description = extract_field(info_sections, 2, "Objet :")
+    logger.debug("Extracted description: %s", description)
 
-    organisme = extract_field(info_sections, 3, "Organisme :")
-    logger.debug("Extracted organisme: %s", organisme)
+    organization = extract_field(info_sections, 3, "Organisme :")
+    logger.debug("Extracted organization: %s", organization)
 
     posting_info: Dict[str, Any] = {
         "reference": reference,
-        "intitule": intitule,
-        "objet": objet,
-        "organisme": organisme,
+        "title": title,
+        "description": description,
+        "organization": organization,
     }
     logger.debug("Parsed posting info: %s", posting_info)
     return posting_info
@@ -103,17 +110,20 @@ def is_boamp_link(link_href: str) -> bool:
     """
     return re.match(BOAMP_REGEX, link_href) is not None
 
-def parse_posting_links(soup: BeautifulSoup) -> dict[str, list[str]]:
+def parse_posting_links(content: BeautifulSoup | requests.Response) -> dict[str, list[str]]:
     """
-    Parse the posting links from the given BeautifulSoup object.
+    Parse the posting links from the given BeautifulSoup object or requests.Response.
 
     Args:
-        soup (BeautifulSoup): The BeautifulSoup object containing the HTML page.
+        content (BeautifulSoup | requests.Response): The BeautifulSoup object or requests.Response containing the HTML page.
 
     Returns:
         tuple[list[str], list[str], list[str], list[str]]: A tuple containing the links to the reglement, dce, avis, and complement files.
     """
-    publicite_tab = soup.find(id='pub')
+    if isinstance(content, requests.Response):
+        content = BeautifulSoup(content.text, 'html.parser')
+
+    publicite_tab = content.find(id='pub')
     if publicite_tab is None:
         logger.error("No publicite_tab found.")
         raise ValueError("No publicite_tab found.")
