@@ -2,15 +2,16 @@ from sqlmodel import Field, SQLModel
 from datetime import datetime
 from typing import Optional
 from enum import Enum
+from sqlmodel import Relationship
 
 class FetchingStatus(str, Enum):
     PENDING = "pending"
     SUCCESS = "success"
     FAILURE = "failure"
 
-class RawPosting(SQLModel, table=True):
+class PostingPage(SQLModel, table=True):
     """
-    Database model representing a PLACE public market posting (raw HTML).
+    Database model representing a PLACE public market posting page (raw HTML).
 
     Attributes:
         id (Optional[int]): Primary key.
@@ -20,9 +21,8 @@ class RawPosting(SQLModel, table=True):
         content (str): Raw HTML content of the posting.
     """
     id: int = Field(default=None, primary_key=True)
-    reference: str = Field(nullable=False)
     url: str = Field(nullable=False)
-    created_at: datetime = Field(nullable=False)
+    created_at: datetime = Field(nullable=False, default=datetime.now())
     content: str = Field(nullable=False)
 
 class Posting(SQLModel, table=True):
@@ -44,21 +44,26 @@ class Posting(SQLModel, table=True):
     title: str = Field(nullable=False)
     description: str = Field(nullable=False)
     organization: str = Field(nullable=False)
-    last_updated: datetime = Field(nullable=False)
+    last_updated: datetime = Field(nullable=False, default=datetime.now())
     is_fetching_done: bool = Field(default=False, nullable=False)
     fetching_status: FetchingStatus = Field(default=FetchingStatus.PENDING, nullable=False)
-
 
 class PostingLink(SQLModel, table=True):
     """
     Database model representing a link to a PLACE public market posting.
+
+    When a Posting is deleted, all associated PostingLink records are also deleted (ON DELETE CASCADE).
     """
     id: int = Field(default=None, primary_key=True)
-    posting_id: int = Field(nullable=False, foreign_key="posting.id")
+    posting_id: int = Field(
+        nullable=False,
+        foreign_key="posting.id",
+        ondelete="CASCADE"
+    )
     url: str = Field(nullable=False)
     kind: str = Field(nullable=False)
-    last_updated: datetime = Field(nullable=False)
-
+    fetching_status: FetchingStatus = Field(default=FetchingStatus.PENDING, nullable=False)
+    last_updated: datetime = Field(nullable=False, default=datetime.now())
 
 class ArchiveEntry(SQLModel, table=True):
     """

@@ -55,10 +55,6 @@ def parse_posting_info(content: BeautifulSoup | requests.Response) -> Dict[str, 
 
     logger.debug("Found %d info_sections elements.", len(info_sections))
 
-    print([type(t) for t in info_sections])
-
-    print(info_sections)
-
     reference = extract_field(info_sections, 0, "Référence :")
     logger.debug("Extracted reference: %s", reference)
 
@@ -135,6 +131,7 @@ def parse_posting_links(content: BeautifulSoup | requests.Response) -> dict[str,
         'dce': [],
         'avis': [],
         'complement': [],
+        'dume': [],
     }
 
     for link in file_links:
@@ -146,10 +143,14 @@ def parse_posting_links(content: BeautifulSoup | requests.Response) -> dict[str,
         link_id = link.attrs['id'] if 'id' in link.attrs else None
 
         inferred_link_type = infer_link_type(link_id)
+
         if inferred_link_type is None:
-            logger.error(f"Unknown link type: {link_id} : {link_href}")
-            raise ValueError(f"Unknown link type: {link_id} : {link_href}")
-        links[inferred_link_type].append(link_href)
+            logger.warning(f"No link type found for link: {link_id} : {link_href}")
+            continue
+        elif inferred_link_type == 'dume':
+            continue
+        else:
+            links[inferred_link_type].append(link_href)
 
     return links
 

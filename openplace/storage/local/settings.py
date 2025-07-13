@@ -8,7 +8,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-def connect_to_db() -> Tuple[Engine, Session]:
+def connect_to_db(echo: bool = False) -> Tuple[Engine, Session]:
     """
     Connect to the local SQLite database using a path from the LOCAL_DB_PATH environment variable if set.
 
@@ -18,7 +18,7 @@ def connect_to_db() -> Tuple[Engine, Session]:
     db_path = os.environ.get("LOCAL_DB_PATH", "openplace.db")
     logger.info(f"Connecting to SQLite database at path: {db_path}")
     try:
-        engine = create_engine(f"sqlite:///{db_path}", echo=True)
+        engine = create_engine(f"sqlite:///{db_path}", echo=echo)
         session = Session(engine)
         logger.info("Successfully connected to the SQLite database.")
         return engine, session
