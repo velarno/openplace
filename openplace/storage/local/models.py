@@ -2,7 +2,6 @@ from sqlmodel import Field, SQLModel
 from datetime import datetime
 from typing import Optional
 from enum import Enum
-from sqlmodel import Relationship
 
 class FetchingStatus(str, Enum):
     PENDING = "pending"
@@ -36,6 +35,7 @@ class Posting(SQLModel, table=True):
         title (str): Title of the posting.
         description (str): Description of the posting.
         organization (str): Organization of the posting.
+        org_acronym (str): Acronym of the organization.
         last_updated (datetime): Last updated timestamp.
     """
     id: int = Field(default=None, primary_key=True)
@@ -44,6 +44,7 @@ class Posting(SQLModel, table=True):
     title: str = Field(nullable=False)
     description: str = Field(nullable=False)
     organization: str = Field(nullable=False)
+    org_acronym: str = Field(nullable=False)
     last_updated: datetime = Field(nullable=False, default=datetime.now())
     is_fetching_done: bool = Field(default=False, nullable=False)
     fetching_status: FetchingStatus = Field(default=FetchingStatus.PENDING, nullable=False)

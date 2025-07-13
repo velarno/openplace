@@ -12,6 +12,7 @@ Args:
     filename (str): The name of the file.
     file_type (str): The type of the file.
     response (requests.Response): The response from the server.
+    streaming (bool): Whether the response is streaming.
 
 Returns:
     int: The file size.

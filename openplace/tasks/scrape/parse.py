@@ -86,6 +86,9 @@ def infer_link_type(link_id: str) -> str | None:
     Returns:
         str | None: The type of link, or None if the link_id is not recognized.
     """
+    if link_id is None:
+        return None
+
     match link_id:
         case 'linkDownloadReglement':
             return 'reglement'
@@ -98,6 +101,8 @@ def infer_link_type(link_id: str) -> str | None:
         case 'linkDownloadDume':
             return 'dume'
         case _:
+            if not is_boamp_link(link_id):
+                logger.warning(f"Unknown link type: {link_id}")
             return None
 
 def is_boamp_link(link_href: str) -> bool:
@@ -137,7 +142,7 @@ def parse_posting_links(content: BeautifulSoup | requests.Response) -> dict[str,
     for link in file_links:
         link_href = link.attrs['href']
 
-        if not link_href or is_boamp_link(link_href):
+        if not link_href:
             continue
 
         link_id = link.attrs['id'] if 'id' in link.attrs else None
@@ -145,7 +150,8 @@ def parse_posting_links(content: BeautifulSoup | requests.Response) -> dict[str,
         inferred_link_type = infer_link_type(link_id)
 
         if inferred_link_type is None:
-            logger.warning(f"No link type found for link: {link_id} : {link_href}")
+            if not is_boamp_link(link_href):
+                logger.warning(f"No link type found for link: {link_id} : {link_href}")
             continue
         elif inferred_link_type == 'dume':
             continue

@@ -49,14 +49,14 @@ def is_zip_file(response: requests.Response) -> bool:
 def fetch_dce_file(
     posting_id: str,
     org_acronym: str,
-    file_writer: Callable[[str, str, str, requests.Response], int],
+    file_writer: Callable[[str, str, str, requests.Response, bool], int],
     page_state_regex: str = PAGE_STATE_REGEX,
 ) -> tuple[str | None, int | None]:
     """
     Fetch the Dossier de Consultation aux Entreprises (DCE) file by navigating the required pages.
 
     Args:
-        annonce_id (str): The ID of the announcement.
+        posting_id (str): The ID of the announcement.
         org_acronym (str): The organization acronym.
         link_dce (str): The DCE link fragment from the posting page.
         write_response_to_file (callable): Function to write the response content to a file.
@@ -73,7 +73,6 @@ def fetch_dce_file(
         f'https://www.marches-publics.gouv.fr/index.php?page=Entreprise.EntrepriseDemandeTelechargementDce'
         f'&id={posting_id}&orgAcronyme={org_acronym}'
     )
-
     # Step 1: Initial GET request to get page state and cookie
     response_dce = requests.get(url_dce, allow_redirects=False, timeout=600)
     assert response_dce.status_code == 200, f"Initial DCE GET failed: {response_dce.status_code}"
@@ -108,42 +107,48 @@ def fetch_dce_file(
         'PRADO_PAGESTATE': page_state,
         'PRADO_POSTBACK_TARGET': 'ctl0$CONTENU_PAGE$EntrepriseDownloadDce$completeDownload',
     }
-    response_after_download = requests.post(
-        url_dce, headers={'Cookie': cookie}, data=data_download, stream=True, timeout=600
+    response_download = requests.post(
+        url_dce, 
+        headers={
+            'Cookie': cookie,
+        }, 
+        data=data_download, 
+        stream=True, 
+        timeout=600
     )
-    assert response_after_download.status_code == 200, f"CompleteDownload POST failed: {response_after_download.status_code}"
+    assert response_download.status_code == 200, f"CompleteDownload POST failed: {response_download.status_code}"
 
-    if not is_zip_file(response_after_download):
-        logger.error(f"Content-Type is not application/octet-stream or application/zip: {response_after_download.headers['Content-Type']}")
-        raise ValueError(f"Content-Type is not application/octet-stream or application/zip: {response_after_download.headers['Content-Type']}")
+    if not is_zip_file(response_download):
+        logger.warning(f"Content-Type is unexpected: {response_download.headers['Content-Type']}")
 
     regex_attachment = r'^attachment; filename="([^"]+)";$'
-    content_disp = response_after_download.headers.get('Content-Disposition', '')
-    match_filename = re.match(regex_attachment, content_disp)
+    content_disposition = response_download.headers['Content-Disposition']
+    match_filename = re.match(regex_attachment, content_disposition)
     if not match_filename:
-        logger.error("Could not extract filename from Content-Disposition header.")
-        raise ValueError("Could not extract filename from Content-Disposition header.")
+        logger.error("Could not extract filename from Content-Disposition header: %s", content_disposition)
+        raise ValueError(f"Could not extract filename from Content-Disposition header: {content_disposition}")
     filename_dce = match_filename.groups()[0]
 
     file_size_dce = file_writer(
         posting_id,
         filename_dce,
         'dce',
-        response_after_download,
+        response_download,
+        True, # streaming
     )
 
     return filename_dce, file_size_dce
 
 def fetch_reglement_file(
-    annonce_id: str,
+    posting_id: str,
     link_reglement: str,
-    write_response_to_file: Callable[[str, str, str, requests.Response], int],
+    file_writer: Callable[[str, str, str, requests.Response, bool], int],
 ) -> tuple[str | None, int | None]:
     """
     Fetch the reglement file from the given link, save it, and return its filename and size.
 
     Args:
-        annonce_id (str): The ID of the announcement.
+        posting_id (str): The ID of the announcement.
         link_reglement (str): The relative URL to the reglement file.
         write_response_to_file (Callable): Function to write the response content to a file.
 
@@ -151,44 +156,43 @@ def fetch_reglement_file(
         Tuple[str | None, int | None]: The filename and file size of the reglement, or (None, None) if not found.
     """
     if not link_reglement:
-        logger.info("No reglement link provided for annonce_id=%s.", annonce_id)
+        logger.info("No reglement link provided for posting_id=%s.", posting_id)
         return None, None
 
     url = f'https://www.marches-publics.gouv.fr{link_reglement}'
-    logger.info("Fetching reglement file for annonce_id=%s from URL: %s", annonce_id, url)
+    logger.info("Fetching reglement file for posting_id=%s from URL: %s", posting_id, url)
     response_reglement = requests.get(url, stream=True, timeout=600)
     if response_reglement.status_code != 200:
-        logger.error("Failed to fetch reglement file for annonce_id=%s, status_code=%d", annonce_id, response_reglement.status_code)
-        raise ValueError(f"Failed to fetch reglement file: {response_reglement.status_code}")
+        logger.error("Failed to fetch reglement file for posting_id=%s, status_code=%d", posting_id, response_reglement.status_code)
 
     regex_attachment = r'^attachment; filename="([^"]+)";$'
     content_disposition = response_reglement.headers.get('Content-Disposition', '')
     match_filename = re.match(regex_attachment, content_disposition)
     if not match_filename:
-        logger.error("Could not extract filename from Content-Disposition header for annonce_id=%s.", annonce_id)
-        raise ValueError("Could not extract filename from Content-Disposition header.")
+        logger.error("Could not extract filename from Content-Disposition header for posting_id=%s.", posting_id)
 
     filename_reglement = match_filename.groups()[0]
-    logger.info("Saving reglement file '%s' for annonce_id=%s.", filename_reglement, annonce_id)
-    file_size_reglement = write_response_to_file(
-        annonce_id,
+    logger.info("Saving reglement file '%s' for posting_id=%s.", filename_reglement, posting_id)
+    file_size_reglement = file_writer(
+        posting_id,
         filename_reglement,
         'reglement',
-        response_reglement
+        response_reglement,
+        True, # streaming
     )
-    logger.info("Reglement file saved: %s (%d bytes) for annonce_id=%s.", filename_reglement, file_size_reglement, annonce_id)
+    logger.info("Reglement file saved: %s (%d bytes) for posting_id=%s.", filename_reglement, file_size_reglement, posting_id)
     return filename_reglement, file_size_reglement
 
 def fetch_complement_file(
-    annonce_id: str,
+    posting_id: str,
     link_complement: str,
-    write_response_to_file: Callable[[str, str, str, requests.Response], int],
+    file_writer: Callable[[str, str, str, requests.Response, bool], int],
 ) -> tuple[str | None, int | None]:
     """
     Fetch the complement file from the given link, save it, and return its filename and size.
 
     Args:
-        annonce_id (str): The ID of the announcement.
+        posting_id (str): The ID of the announcement.
         link_complement (str): The relative URL to the complement file. 
         write_response_to_file (Callable): Function to write the response content to a file.
 
@@ -196,44 +200,45 @@ def fetch_complement_file(
         Tuple[str | None, int | None]: The filename and file size of the complement, or (None, None) if not found.
     """
     if not link_complement:
-        logger.info("No complement link provided for annonce_id=%s.", annonce_id)
+        logger.info("No complement link provided for posting_id=%s.", posting_id)
         return None, None
 
     url = f'https://www.marches-publics.gouv.fr{link_complement}'
-    logger.info("Fetching complement file for annonce_id=%s from URL: %s", annonce_id, url)
+    logger.info("Fetching complement file for posting_id=%s from URL: %s", posting_id, url)
     response_complement = requests.get(url, stream=True, timeout=600)
     if response_complement.status_code != 200:
-        logger.error("Failed to fetch complement file for annonce_id=%s, status_code=%d", annonce_id, response_complement.status_code)
+        logger.error("Failed to fetch complement file for posting_id=%s, status_code=%d", posting_id, response_complement.status_code)
         raise ValueError(f"Failed to fetch complement file: {response_complement.status_code}")
 
     regex_attachment = r'^attachment; filename="([^"]+)"'
     content_disp = response_complement.headers.get('Content-Disposition', '')
     match_filename = re.match(regex_attachment, content_disp)
     if not match_filename:
-        logger.error("Could not extract filename from Content-Disposition header for annonce_id=%s.", annonce_id)
+        logger.error("Could not extract filename from Content-Disposition header for posting_id=%s.", posting_id)
         raise ValueError("Could not extract filename from Content-Disposition header.")
 
     filename_complement = match_filename.groups()[0]
-    logger.info("Saving complement file '%s' for annonce_id=%s.", filename_complement, annonce_id)
-    file_size_complement = write_response_to_file(
-        annonce_id,
+    logger.info("Saving complement file '%s' for posting_id=%s.", filename_complement, posting_id)
+    file_size_complement = file_writer(
+        posting_id,
         filename_complement,
         'complement',
-        response_complement
+        response_complement,
+        True, # streaming
     )
-    logger.info("Complement file saved: %s (%d bytes) for annonce_id=%s.", filename_complement, file_size_complement, annonce_id)
+    logger.info("Complement file saved: %s (%d bytes) for posting_id=%s.", filename_complement, file_size_complement, posting_id)
     return filename_complement, file_size_complement
 
 def fetch_avis_file(
-    annonce_id: str,
+    posting_id: str,
     link_avis: str,
-    write_response_to_file: Callable[[str, str, str, requests.Response], int],
+    file_writer: Callable[[str, str, str, requests.Response, bool], int],
 ) -> tuple[str | None, int | None]:
     """
     Fetch the avis file from the given link, save it, and return its filename and size.
 
     Args:
-        annonce_id (str): The ID of the announcement.
+        posting_id (str): The ID of the announcement.
         link_avis (str): The relative URL to the avis file.
         write_response_to_file (Callable): Function to write the response content to a file.
 
@@ -241,46 +246,48 @@ def fetch_avis_file(
         Tuple[str | None, int | None]: The filename and file size of the avis, or (None, None) if not found.
     """
     if not link_avis:
-        logger.info("No avis link provided for annonce_id=%s.", annonce_id)
+        logger.info("No avis link provided for posting_id=%s.", posting_id)
         return None, None
 
     url = f'https://www.marches-publics.gouv.fr{link_avis}'
-    logger.info("Fetching avis file for annonce_id=%s from URL: %s", annonce_id, url)
+    logger.info("Fetching avis file for posting_id=%s from URL: %s", posting_id, url)
     response_avis = requests.get(url, stream=True, timeout=600)
     if response_avis.status_code != 200:
-        logger.error("Failed to fetch avis file for annonce_id=%s, status_code=%d", annonce_id, response_avis.status_code)
+        logger.error("Failed to fetch avis file for posting_id=%s, status_code=%d", posting_id, response_avis.status_code)
         raise ValueError(f"Failed to fetch avis file: {response_avis.status_code}")
 
     regex_attachment = r'^attachment; filename=([^;]+);'
     content_disposition = response_avis.headers.get('Content-Disposition', '')
     match_filename = re.match(regex_attachment, content_disposition)
     if not match_filename:
-        logger.error("Could not extract filename from Content-Disposition header for annonce_id=%s.", annonce_id)
+        logger.error("Could not extract filename from Content-Disposition header for posting_id=%s.", posting_id)
         raise ValueError("Could not extract filename from Content-Disposition header.")
 
     filename_avis = match_filename.groups()[0]
-    logger.info("Saving avis file '%s' for annonce_id=%s.", filename_avis, annonce_id)
-    file_size_avis = write_response_to_file(
-        annonce_id,
+    logger.info("Saving avis file '%s' for posting_id=%s.", filename_avis, posting_id)
+    file_size_avis = file_writer(
+        posting_id,
         filename_avis,
         'avis',
-        response_avis
+        response_avis,
+        True, # streaming
     )
-    logger.info("Avis file saved: %s (%d bytes) for annonce_id=%s.", filename_avis, file_size_avis, annonce_id)
+    logger.info("Avis file saved: %s (%d bytes) for posting_id=%s.", filename_avis, file_size_avis, posting_id)
     return filename_avis, file_size_avis
 
 
 class PostingFileFetcher:  
-    def __init__(self, posting_id: str, org_acronym: str, file_writer: Callable[[str, str, str, requests.Response], int]):
+    def __init__(self, posting_id: str, org_acronym: str, file_writer: Callable[[str, str, str, requests.Response, bool], int], page_state_regex: str = PAGE_STATE_REGEX):
         self.posting_id = posting_id
         self.org_acronym = org_acronym
         self.file_writer = file_writer
-
+        self.page_state_regex = page_state_regex
+        
     @staticmethod
     def dce(
         posting_id: str,
         org_acronym: str,
-        file_writer: Callable[[str, str, str, requests.Response], int],
+        file_writer: Callable[[str, str, str, requests.Response, bool], int],
         page_state_regex: str = PAGE_STATE_REGEX,
     ) -> tuple[str | None, int | None]:
         return fetch_dce_file(posting_id, org_acronym, file_writer, page_state_regex)
@@ -289,25 +296,25 @@ class PostingFileFetcher:
     def reglement(
         posting_id: str,
         link_reglement: str,
-        write_response_to_file: Callable[[str, str, str, requests.Response], int],
+        file_writer: Callable[[str, str, str, requests.Response, bool], int],
     ) -> tuple[str | None, int | None]:
-        return fetch_reglement_file(posting_id, link_reglement, write_response_to_file)
+        return fetch_reglement_file(posting_id, link_reglement, file_writer)
     
     @staticmethod
     def complement(
         posting_id: str,
         link_complement: str,
-        write_response_to_file: Callable[[str, str, str, requests.Response], int],
+        file_writer: Callable[[str, str, str, requests.Response, bool], int],
     ) -> tuple[str | None, int | None]:
-        return fetch_complement_file(posting_id, link_complement, write_response_to_file)
+        return fetch_complement_file(posting_id, link_complement, file_writer)
     
     @staticmethod
     def avis(
         posting_id: str,
         link_avis: str,
-        write_response_to_file: Callable[[str, str, str, requests.Response], int],
+        file_writer: Callable[[str, str, str, requests.Response, bool], int],
     ) -> tuple[str | None, int | None]:
-        return fetch_avis_file(posting_id, link_avis, write_response_to_file)
+        return fetch_avis_file(posting_id, link_avis, file_writer)
 
     def __call__(self, kind: str, link: str) -> tuple[str | None, int | None]:
         """
@@ -324,7 +331,7 @@ class PostingFileFetcher:
             raise ValueError(f"Unknown file kind: {kind}")
         
         if kind == 'dce':
-            return self.dce(self.posting_id, self.org_acronym, self.file_writer)
+            return self.dce(self.posting_id, self.org_acronym, self.file_writer, self.page_state_regex)
         elif kind == 'reglement':
             return self.reglement(self.posting_id, link, self.file_writer)
         elif kind == 'complement':

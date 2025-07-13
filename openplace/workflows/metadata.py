@@ -14,14 +14,23 @@ from openplace.storage.local.queries import get_posting_links, create_zip_entrie
 
 logger = logging.getLogger(__name__)
 
-
 def fetch_persist_posting(
     response: requests.Response,
     posting_id: str,
+    org_acronym: str,
     storage: StorageType = StorageType.LOCAL,
 ) -> Posting | None:
     """
     Fetch and persist a PLACE public market posting.
+
+    Args:
+        response (requests.Response): The HTTP response object containing the posting page.
+        posting_id (str): The ID of the posting.
+        org_acronym (str): The acronym of the organization.
+        storage (StorageType): The storage type.
+
+    Returns:
+        Posting | None: The persisted posting or None if the posting already exists.
     """
     logger.info(f"Starting fetch_persist_posting for posting_id={posting_id}")
     if storage == StorageType.LOCAL:
@@ -43,6 +52,7 @@ def fetch_persist_posting(
     logger.debug(f"Parsed posting_links: {posting_links}")
     posting = Posting(
         **posting_info,
+        org_acronym=org_acronym,
         id=int(posting_id),
         url=response.url,
     )
@@ -84,9 +94,9 @@ def discover_new_postings(n: int = 1, storage: StorageType = StorageType.LOCAL) 
         logger.debug(f"Fetched posting_links batch: {posting_links}")
         for link in posting_links:
             try:
-                posting_id, _, response = fetch.fetch_posting_page(link)
+                posting_id, org_acronym, response = fetch.fetch_posting_page(link)
                 logger.info(f"Fetched posting page for link={link}, posting_id={posting_id}")
-                posting = fetch_persist_posting(response, posting_id, storage=storage)
+                posting = fetch_persist_posting(response, posting_id, org_acronym, storage=storage)
                 new_postings.append(posting)
                 logger.info(f"Discovered and persisted posting_id={posting_id}")
             except Exception as e:
@@ -94,39 +104,3 @@ def discover_new_postings(n: int = 1, storage: StorageType = StorageType.LOCAL) 
                 raise e
     logger.info(f"Completed discover_new_postings, found {len(new_postings)} new postings.")
     return new_postings
-
-def fetch_posting_files(
-    posting: Posting, 
-    storage: StorageType = StorageType.LOCAL,
-    file_writer: FileWriter = fs_writer
-    ) -> list[PostingLink]:
-    """
-    Fetch the files of a posting.
-    """
-    logger.info(f"Starting fetch_posting_files for posting_id={posting.id}")
-    if storage == StorageType.LOCAL:
-        engine, session = connect_to_db()
-        create_tables(engine)
-        logger.debug("Connected to DB and ensured tables exist.")
-    else:
-        logger.error(f"Unsupported storage type: {storage}")
-        raise ValueError(f"Unsupported storage type: {storage}")
-
-    links = get_posting_links(posting.id, session)
-    logger.debug(f"Fetched posting links for posting_id={posting.id}: {links}")
-
-    fetcher = PostingFileFetcher(str(posting.id), posting.organization, file_writer)
-    for link in links:
-        try:
-            filename, file_size = fetcher(link.kind, link.url)
-            logger.info(f"Fetched file for link={link.url}, filename={filename}, size={file_size}")
-            if filename is not None:
-                create_zip_entries(filename, session, posting.id)
-                logger.debug(f"Created zip entry for filename={filename}, posting_id={posting.id}")
-        except Exception as e:
-            logger.error(f"Error fetching file for link={link.url}: {e}")
-            update_posting_fetching_status(posting.id, FetchingStatus.FAILURE, session)
-            raise e
-    update_posting_fetching_status(posting.id, FetchingStatus.SUCCESS, session)
-    logger.info(f"Completed fetch_posting_files for posting_id={posting.id}")
-    return links

@@ -1,6 +1,7 @@
-from openplace.workflows.metadata import discover_new_postings, fetch_posting_files
-from openplace.storage.local.queries import get_posting_links, list_postings as list_postings_local
-from openplace.storage.local.queries import remove_posting as remove_posting_local
+from openplace.workflows.metadata import discover_new_postings
+from openplace.workflows.files import download_pending_files
+
+import openplace.storage.local.queries as q
 
 import logging
 import typer
@@ -41,20 +42,22 @@ def list_postings(
     List postings.
     """
     if storage == StorageType.LOCAL:
-        postings = list_postings_local(storage=storage, limit=limit)
-        for posting in postings:
-            typer.echo(f"{posting.id} {posting.title} {posting.fetching_status} {posting.last_updated}")
+        postings = q.list_postings(storage=storage, limit=limit)
+        if postings:
+            typer.echo("id|org_acronym|organization|title|fetching_status|last_updated")
+            for posting in postings:
+                typer.echo(f"{posting.id}|{posting.org_acronym}|{posting.organization}|{posting.title}|{posting.fetching_status}|{posting.last_updated}")
     else:
         raise ValueError(f"Storage type {storage} not supported")
 
 @app.command()
 def list_links(
-    posting_id: int = Option(..., "--posting-id", "-p", help="Posting ID"),
-    storage: StorageType = Option(StorageType.LOCAL, "--storage", "-s", help="Storage type"),
+    posting_id: int = Option(..., "--posting-id", "-i", help="Posting ID"),
+    storage: StorageType = Option(StorageType.LOCAL, "--storage", "-S", help="Storage type"),
     ):
     """"""
     if storage == StorageType.LOCAL:
-        links = get_posting_links(posting_id)
+        links = q.get_posting_links(posting_id)
 
     else:
         raise ValueError(f"Storage type {storage} not supported")
@@ -64,14 +67,30 @@ def list_links(
 
 @app.command()
 def remove_posting(
-    posting_id: int = Option(..., "--posting-id", "-p", help="Posting ID"),
-    storage: StorageType = Option(StorageType.LOCAL, "--storage", "-s", help="Storage type"),
+    posting_id: int = Option(..., "--posting-id", "-i", help="Posting ID"),
+    storage: StorageType = Option(StorageType.LOCAL, "--storage", "-S", help="Storage type"),
     ):
     """
     Remove a posting.
     """
     if storage == StorageType.LOCAL:
-        remove_posting_local(posting_id)
+        q.remove_posting(posting_id)
+    else:
+        raise ValueError(f"Storage type {storage} not supported")
+
+@app.command()
+def fetch_archives(
+    storage: StorageType = Option(StorageType.LOCAL, "--storage", "-S", help="Storage type", show_default=True),
+    display_progress: bool = Option(True, "--silent", "-s", help="Display progress", show_default=True),
+    debug: bool = Option(False, "--debug", "-d", help="Debug mode", show_default=True),
+):
+    """
+    Download pending files.
+    """
+    if debug:
+        logging.basicConfig(level=logging.DEBUG)
+    if storage == StorageType.LOCAL:
+        download_pending_files(storage=storage, display_progress=display_progress)
     else:
         raise ValueError(f"Storage type {storage} not supported")
 

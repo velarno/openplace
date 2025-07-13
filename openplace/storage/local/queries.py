@@ -78,6 +78,56 @@ def is_posting_present(posting_id: int, session: Optional[Session] = None) -> bo
     return session.exec(select(Posting).where(Posting.id == posting_id)).first() is not None
 
 @ensure_session
+def record_archive_entries(
+    path: str, posting_id: int,
+    session: Optional[Session] = None,
+    persist: bool = True,
+) -> Sequence[ArchiveEntry]:
+    """
+    Record archive entries in the database.
+    An archive entry is either a single file or a filetree as a zip archive.
+
+    Args:
+        path (str): Path to the archive file.
+        posting_id (int): ID of the posting.
+        session (Session): SQLModel session for database operations.
+        persist (bool): Whether to persist the entries to the database.
+
+    Returns:
+        Sequence[ArchiveEntry]: The created ArchiveEntry objects.
+    """
+    if session is None:
+        raise ValueError("Session is required")
+
+    if zipfile.is_zipfile(path):
+        entries = create_zip_entries(path, posting_id, session)
+    else:
+        entries = [record_file_entry(path, posting_id, session)]
+    if persist:
+        session.add_all(entries)
+        session.commit()
+    return entries
+
+@ensure_session
+def record_file_entry(path: str, posting_id: int, session: Optional[Session] = None) -> ArchiveEntry:
+    """
+    Record a file entry in the database.
+    """
+    if session is None:
+        raise ValueError("Session is required")
+
+    name = Path(path).name
+
+    return ArchiveEntry(
+        name=name,
+        path=path,
+        parent_id=None,
+        posting_id=posting_id,
+        is_dir=False,
+        is_extracted=False,
+    )
+    
+@ensure_session
 def create_zip_entries(
     zip_path: str, posting_id: int, session: Optional[Session] = None
 ) -> Sequence[ArchiveEntry]:
@@ -113,7 +163,6 @@ def create_zip_entries(
         raise ValueError("Session is required")
     session.add_all(entries)
     session.commit()
-    session.refresh(entries)
     return entries
 
 @ensure_session
@@ -146,3 +195,34 @@ def remove_posting(posting_id: int | str, session: Optional[Session] = None) -> 
         raise ValueError(f"Posting with id {posting_id} not found")
     session.delete(posting)
     session.commit()
+
+@ensure_session
+def get_pending_postings(session: Optional[Session] = None) -> Sequence[Posting]:
+    """
+    Get all pending postings.
+    """
+    if session is None:
+        raise ValueError("Session is required")
+    return session.exec(select(Posting).where(Posting.fetching_status == FetchingStatus.PENDING)).all()
+
+@ensure_session
+def get_pending_links(limit: int = 100, session: Optional[Session] = None) -> Sequence[Sequence[Posting | PostingLink]]:
+    """
+    Get all pending links.
+
+    Args:
+        limit (int): Maximum number of links to return.
+        session (Session): SQLModel session for database operations.
+
+    Returns:
+        Sequence[Sequence[Posting | PostingLink]]: List of postings and their links.
+    """
+    if session is None:
+        raise ValueError("Session is required")
+    
+    return session.exec(
+        select(Posting, PostingLink)
+        .join(PostingLink)
+        .where(PostingLink.fetching_status == FetchingStatus.PENDING)
+        .limit(limit)
+    ).all()

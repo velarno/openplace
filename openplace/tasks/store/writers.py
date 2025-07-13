@@ -1,22 +1,44 @@
+import logging
 import os
 import requests
 from typing import Any
+from pathlib import Path
 
-def fs_writer(annonce_id: str, filename: str, file_type: str, response: requests.Response) -> int:
+logger = logging.getLogger(__name__)
+
+def detect_content_type(response: requests.Response) -> str:
+    """Detect the content type of a response"""
+    return response.headers.get('Content-Type', 'application/octet-stream')
+
+def local_archive_name(posting_id: str, filename: str, file_type: str) -> str:
+    """Provides a standardized naming convention for local archives"""
+    stem = Path(filename).stem
+    return f'{posting_id}.{stem}.{file_type}.zip'
+
+def fs_writer(posting_id: str, filename: str, file_type: str, response: requests.Response, streaming: bool = False) -> int:
     """
     Write a file to the local filesystem.
     """
-    with open(f'{annonce_id}_{filename}_{file_type}.zip', 'wb') as f:
-        f.write(response.content)
-    return len(response.content)
+    content_type = detect_content_type(response)
+    archive_name = local_archive_name(posting_id, filename, file_type)
+    logger.debug(f"Writing file to {archive_name} ({content_type})")
+    if streaming:
+        with open(archive_name, 'wb') as f:
+            for chunk in response.iter_content(8192):
+                f.write(chunk)
+    else:
+        with open(archive_name, 'wb') as f:
+            f.write(response.content)
+    logger.debug(f"Wrote file to {archive_name}")
+    return os.path.getsize(archive_name)
 
-def s3_writer(annonce_id: str, filename: str, file_type: str, response: requests.Response) -> Any:
+def s3_writer(posting_id: str, filename: str, file_type: str, response: requests.Response) -> Any:
     """
     Write a file to S3.
     """
     raise NotImplementedError("S3 writer not implemented")
 
-def temp_writer(annonce_id: str, filename: str, file_type: str, response: requests.Response) -> Any:
+def temp_writer(posting_id: str, filename: str, file_type: str, response: requests.Response) -> Any:
     """
     Write a file to the temporary directory.
     """
