@@ -1,5 +1,6 @@
 from openplace.workflows.metadata import discover_new_postings
 from openplace.workflows.files import download_pending_files
+from openplace.tasks.export.archives import export_archives as export_archives_task
 
 import openplace.storage.local.queries as q
 
@@ -7,6 +8,9 @@ import logging
 import typer
 from typer import Option, Argument
 from openplace.tasks.store.types import StorageType
+
+
+logger = logging.getLogger(__name__)
 
 app = typer.Typer(
     name="openplace",
@@ -93,6 +97,21 @@ def fetch_archives(
         download_pending_files(storage=storage, display_progress=display_progress)
     else:
         raise ValueError(f"Storage type {storage} not supported")
+
+@app.command()
+def export_archives(
+    output_dir: str = Option(".", "--output-dir", "-o", help="Output directory", show_default=True),
+    output_format: str = Option("parquet", "--output-format", "-f", help="Output format", show_default=True),
+    debug: bool = Option(False, "--debug", "-d", help="Debug mode", show_default=True),
+):
+    """
+    Export archives to a file.
+    If no output directory is provided, the archives will be exported to a file named "archives-<date>.parquet" in the current directory.
+    If no output format is provided, the archives will be exported to a parquet file.
+    """
+    if debug:
+        logging.basicConfig(level=logging.DEBUG)
+    export_archives_task(output_dir=output_dir, output_format=output_format)
 
 def main():
     app()
