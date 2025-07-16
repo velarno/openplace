@@ -7,14 +7,13 @@ jobs:
     steps:
       - name: Check out repository code
         uses: actions/checkout@v4
-      - name: Install uv
-        uses: astral-sh/uv@v6
-      - name: Build Python wheels
-        run: uv venv
-      - name: Install dependencies
-        run: uv pip install -e .[dev]
-      - name: Build Python wheels
-        run: uv build --refresh --wheel --sdist --package openplace
+      - name: Install the latest version of uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          version: "latest"
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build Python wheels and publish to github releases
+        run: uv build --refresh --wheel --sdist --package openplace --publish
       - name: Publish Python wheels to github releases
         run: |
           echo "Tag will be ${{ github.ref_name }}"
