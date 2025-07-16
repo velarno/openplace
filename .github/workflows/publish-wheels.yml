@@ -13,7 +13,7 @@ jobs:
           version: "latest"
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Build Python wheels and publish to github releases
-        run: uv build --refresh --wheel --sdist --package openplace --publish
+        run: uv build --refresh --wheel --sdist --package openplace
       - name: Publish Python wheels to github releases
         run: |
           echo "Tag will be ${{ github.ref_name }}"
