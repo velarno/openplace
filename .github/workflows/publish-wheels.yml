@@ -17,9 +17,11 @@ jobs:
       - name: Publish Python wheels to github releases
         run: |
           echo "Tag will be ${{ github.ref_name }}"
-          echo "Token is ${{ secrets.GITHUB_TOKEN }}"
-          echo "Repository is ${{ github.repository }}"
-          echo "Repository owner is ${{ github.repository_owner }}"
-          echo "Repository owner is ${{ github.repository_owner }}"
-
-
+          export TAG_EXISTS=$(gh release view ${{ github.ref_name }} 2>&1 > /dev/null)
+          if [ -z "$TAG_EXISTS" ]; then
+            gh release create ${{ github.ref_name }} --generate-notes
+          else
+            gh release upload ${{ github.ref_name }} openplace/dist/*.whl --clobber
+          fi
+          echo "Published ${{ github.ref_name }} to github releases"
+        
