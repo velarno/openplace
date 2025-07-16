@@ -8,7 +8,7 @@ jobs:
       - name: Check out repository code
         uses: actions/checkout@v4
       - name: Install uv
-        uses: astral-sh/uv@v0.5.30
+        uses: astral-sh/uv@v6
       - name: Build Python wheels
         run: uv venv
       - name: Install dependencies
