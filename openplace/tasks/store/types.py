@@ -1,6 +1,7 @@
 import requests
 from enum import Enum
 from typing import Callable
+from dataclasses import dataclass
 
 
 FileWriter = Callable[[str, str, str, requests.Response], int]
@@ -28,3 +29,13 @@ class StorageType(Enum):
     LOCAL = "local"  # Local filesystem
     S3 = "s3"  # AWS S3
     TEMP = "temp"  # Temporary directory
+
+
+@dataclass
+class ArchiveContent:
+    """Raw markdown content of an archive file after extraction.
+    """
+    posting_id: int
+    filename: str
+    file_type: str
+    content: str

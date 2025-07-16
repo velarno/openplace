@@ -104,3 +104,4 @@ def discover_new_postings(n: int = 1, storage: StorageType = StorageType.LOCAL) 
                 raise e
     logger.info(f"Completed discover_new_postings, found {len(new_postings)} new postings.")
     return new_postings
+

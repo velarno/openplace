@@ -85,3 +85,15 @@ class ArchiveEntry(SQLModel, table=True):
     posting_id: int = Field(nullable=False, foreign_key="posting.id")
     is_dir: bool = Field(nullable=False)
     is_extracted: bool = Field(default=False, nullable=False)
+
+class ArchiveContent(SQLModel, table=True):
+    """
+    Database model representing the content of an archive file.
+    """
+    id: int = Field(default=None, primary_key=True)
+    path: str = Field(nullable=False, index=True)
+    content: str = Field(nullable=False)
+    created_at: datetime = Field(nullable=False, default=datetime.now())
+    updated_at: datetime = Field(nullable=False, default=datetime.now())
+    posting_id: int = Field(nullable=False, foreign_key="posting.id")
+    entry_id: Optional[int] = Field(nullable=True, foreign_key="archiveentry.id")

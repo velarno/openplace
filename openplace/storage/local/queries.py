@@ -1,7 +1,7 @@
 from sqlmodel import Session, select
 from typing import Sequence, Optional
 
-from openplace.storage.local.models import PostingLink, ArchiveEntry, FetchingStatus, Posting
+from openplace.storage.local.models import PostingLink, ArchiveEntry, FetchingStatus, Posting, ArchiveContent
 from openplace.storage.local.settings import connect_to_db
 from openplace.tasks.store.types import StorageType
 
@@ -226,3 +226,48 @@ def get_pending_links(limit: int = 100, session: Optional[Session] = None) -> Se
         .where(PostingLink.fetching_status == FetchingStatus.PENDING)
         .limit(limit)
     ).all()
+
+
+@ensure_session
+def record_archive_content(
+    path: str,
+    content: str,
+    posting_id: int,
+    entry_id: Optional[int] = None,
+    session: Optional[Session] = None,
+    persist: bool = True,
+) -> ArchiveContent:
+    """
+    Record the content of a file.
+    """
+    if session is None:
+        raise ValueError("Session is required")
+    archive_content = ArchiveContent(path=path, content=content, posting_id=posting_id, entry_id=entry_id)
+    if persist:
+        session.add(archive_content)
+        session.commit()
+    return archive_content
+
+@ensure_session
+def get_archive_entry_from_filename(
+    filename: str,
+    session: Optional[Session] = None,
+) -> ArchiveEntry | None:
+    """
+    Get the archive entry from the filename.
+    """
+    if session is None:
+        raise ValueError("Session is required")
+    return session.exec(select(ArchiveEntry).where(ArchiveEntry.name == filename)).first()
+
+@ensure_session
+def get_archive_content_from_path(
+    path: str,
+    session: Optional[Session] = None,
+) -> ArchiveContent | None:
+    """
+    Get the file content from the path.
+    """
+    if session is None:
+        raise ValueError("Session is required")
+    return session.exec(select(ArchiveContent).where(ArchiveContent.path == path)).first()

@@ -1,5 +1,6 @@
 import logging
 import os
+import re
 import requests
 from typing import Any
 from pathlib import Path
@@ -14,6 +15,21 @@ def local_archive_name(posting_id: str, filename: str, file_type: str) -> str:
     """Provides a standardized naming convention for local archives"""
     stem = Path(filename).stem
     return f'{posting_id}.{stem}.{file_type}.zip'
+
+def parse_archive_name(archive_name: str) -> tuple[int, str, str]:
+    """Parse the archive name into posting_id, filename, and file_type.
+
+    Args:
+        archive_name (str): The name of the archive.
+
+    Returns:
+        tuple[int, str, str]: The posting_id, filename, and file_type.
+    """
+    match = re.match(r'^(\d+)\.(.*)\.(.*)\.zip$', archive_name)
+    if match:
+        return int(match.group(1)), match.group(2), match.group(3)
+    else:
+        raise ValueError(f"Invalid archive name: {archive_name}")
 
 def fs_writer(posting_id: str, filename: str, file_type: str, response: requests.Response, streaming: bool = False) -> int:
     """
