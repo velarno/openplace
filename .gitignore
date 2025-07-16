@@ -14,3 +14,13 @@ notebooks/
 .vscode/
 .DS_Store
 old_*.py
+
+# Databases and zip files
+*.db
+*.zip
+*.tar
+*.tar.gz
+*.tar.bz2
+*.tar.xz
+*.tar.lzma
+*.tar.lz
