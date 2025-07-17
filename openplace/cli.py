@@ -1,6 +1,9 @@
+import os
+
 from openplace.workflows.metadata import discover_new_postings
 from openplace.workflows.files import download_pending_files
 from openplace.tasks.export.archives import export_archives as export_archives_task
+from openplace.tasks.extract.markdown import extract_all_archives_concurrently
 
 import openplace.storage.local.queries as q
 
@@ -86,7 +89,7 @@ def remove_posting(
 def fetch_archives(
     storage: StorageType = Option(StorageType.LOCAL, "--storage", "-S", help="Storage type", show_default=True),
     display_progress: bool = Option(True, "--silent", "-s", help="Display progress", show_default=True),
-    debug: bool = Option(False, "--debug", "-d", help="Debug mode", show_default=True),
+    debug: bool = Option(False, "--debug", "-D", help="Debug mode", show_default=True),
 ):
     """
     Download pending files.
@@ -99,10 +102,22 @@ def fetch_archives(
         raise ValueError(f"Storage type {storage} not supported")
 
 @app.command()
+def extract_markdown(
+    directory: str = Option(os.getcwd(), "--directory", "-d", help="Directory to extract markdown from (contains zip files). Defaults to current working directory.", show_default=False),
+    debug: bool = Option(False, "--debug", "-D", help="Debug mode", show_default=True),
+):
+    """
+    Extract markdown from archives.
+    """
+    if debug:
+        logging.basicConfig(level=logging.DEBUG)
+    extract_all_archives_concurrently(directory)
+
+@app.command()
 def export_archives(
     output_dir: str = Option(".", "--output-dir", "-o", help="Output directory", show_default=True),
     output_format: str = Option("parquet", "--output-format", "-f", help="Output format", show_default=True),
-    debug: bool = Option(False, "--debug", "-d", help="Debug mode", show_default=True),
+    debug: bool = Option(False, "--debug", "-D", help="Debug mode", show_default=True),
 ):
     """
     Export archives to a file.

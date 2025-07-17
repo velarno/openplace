@@ -48,7 +48,8 @@ async def extract_all_archives(directory: str) -> list[ArchiveContent]:
     futures = [asyncio.create_task(extract_markdown(archive_path)) for archive_path in archive_paths]
     return [result for result in await asyncio.gather(*futures) if result is not None]
 
-if __name__ == "__main__":
-    results = asyncio.run(extract_all_archives(os.getcwd()))
-    for result in results:
-        print(result)
+def extract_all_archives_concurrently(directory: str) -> list[ArchiveContent]:
+    """
+    Extract the markdown from all archives in the given directory.
+    """
+    return asyncio.run(extract_all_archives(directory))

@@ -40,12 +40,13 @@ jobs:
         uses: actions/download-artifact@v4
         with:
             name: sqlite-database-after-discover
-      - name: Fetch place links
+      - name: Fetch place links & extract markdown
         run: |
             uv venv
             source .venv/bin/activate
             uv sync
             openplace fetch-archives
+            openplace extract-markdown
             openplace export-archives
       - name: Compress ZIPs into single tar.xz file
         run: |
