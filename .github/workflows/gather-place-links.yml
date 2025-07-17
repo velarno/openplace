@@ -72,8 +72,16 @@ jobs:
     steps:
       - name: Check out repository code
         uses: actions/checkout@v4
-      - name: download all previous artifacts
+      - name: download documents artifacts
         uses: actions/download-artifact@v4
+        with:
+            name: place-documents
+            path: place-documents.tar.xz
+      - name: download metadata artifacts
+        uses: actions/download-artifact@v4
+        with:
+            name: place-metadata
+            path: place-metadata.parquet
       - name: upload to gh releases
         env:
             GITHUB_TOKEN: ${{ secrets.GH_ACTIONS_TOKEN }}
