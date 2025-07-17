@@ -87,5 +87,6 @@ jobs:
             GITHUB_TOKEN: ${{ secrets.GH_ACTIONS_TOKEN }}
         run: |
             ls -al
+            ls -al place-documents.tar.xz/
             gh release upload ${{ github.ref_name }} place-documents.tar.xz --clobber
             gh release upload ${{ github.ref_name }} place-metadata.parquet --clobber
