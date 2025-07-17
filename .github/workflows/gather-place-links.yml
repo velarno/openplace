@@ -89,5 +89,5 @@ jobs:
             ls -al
             ls -al documents/
             ls -al metadata/
-            gh release upload ${{ github.ref_name }} documents/place-documents.tar.xz --clobber --generate-notes
-            gh release upload ${{ github.ref_name }} metadata/place-metadata.parquet --clobber --generate-notes
+            gh release upload ${{ github.ref_name }} documents/place-documents.tar.xz --clobber
+            gh release upload ${{ github.ref_name }} metadata/place-metadata.parquet --clobber
