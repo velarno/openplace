@@ -17,6 +17,7 @@ old_*.py
 
 # Databases and zip files
 *.db
+*.db.bak
 *.zip
 *.tar
 *.tar.gz
