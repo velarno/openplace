@@ -76,17 +76,18 @@ jobs:
         uses: actions/download-artifact@v4
         with:
             name: place-documents
-            path: place-documents.tar.xz
+            path: documents
       - name: download metadata artifacts
         uses: actions/download-artifact@v4
         with:
             name: place-metadata
-            path: place-metadata.parquet
+            path: metadata
       - name: upload to gh releases
         env:
             GITHUB_TOKEN: ${{ secrets.GH_ACTIONS_TOKEN }}
         run: |
             ls -al
-            ls -al place-documents.tar.xz/
-            gh release upload ${{ github.ref_name }} place-documents.tar.xz --clobber
-            gh release upload ${{ github.ref_name }} place-metadata.parquet --clobber
+            ls -al documents/
+            ls -al metadata/
+            gh release upload ${{ github.ref_name }} documents/place-documents.tar.xz --clobber --generate-notes
+            gh release upload ${{ github.ref_name }} metadata/place-metadata.parquet --clobber --generate-notes
