@@ -22,7 +22,7 @@ jobs:
       - name: Push sqlite database to artifacts
         uses: actions/upload-artifact@v4
         with:
-            name: sqlite-database
+            name: sqlite-database-after-discover
             path: openplace.db
 
   fetch-place-links:
@@ -39,14 +39,12 @@ jobs:
       - name: Download sqlite database backup
         uses: actions/download-artifact@v4
         with:
-            name: sqlite-database
+            name: sqlite-database-after-discover
       - name: Fetch place links
         run: |
             uv venv
             source .venv/bin/activate
             uv sync
-            ls -la
-            openplace list-postings
             openplace fetch-archives
             openplace export-archives
       - name: Compress ZIPs into single tar.xz file
@@ -60,7 +58,7 @@ jobs:
       - name: Upload updated db to artifacts
         uses: actions/upload-artifact@v4
         with:
-            name: sqlite-database
+            name: sqlite-database-after-fetch-archives
             path: openplace.db
       - name: Upload parquet metadata to artifacts
         uses: actions/upload-artifact@v4
