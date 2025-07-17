@@ -72,13 +72,12 @@ jobs:
     steps:
       - name: Check out repository code
         uses: actions/checkout@v4
-      - name: download artifacts
+      - name: download all previous artifacts
         uses: actions/download-artifact@v4
-        with:
-            name: place-documents,place-metadata
       - name: upload to gh releases
         env:
             GITHUB_TOKEN: ${{ secrets.GH_ACTIONS_TOKEN }}
         run: |
+            ls -al
             gh release upload ${{ github.ref_name }} place-documents.tar.xz --clobber
             gh release upload ${{ github.ref_name }} archives*.parquet --clobber
