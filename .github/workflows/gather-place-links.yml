@@ -90,4 +90,4 @@ jobs:
             ls -al documents/
             ls -al metadata/
             gh release upload ${{ github.ref_name }} documents/place-documents.tar.xz --clobber
-            gh release upload ${{ github.ref_name }} metadata/place-metadata.parquet --clobber
+            gh release upload ${{ github.ref_name }} metadata/archives*.parquet --clobber
