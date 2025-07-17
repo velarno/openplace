@@ -53,7 +53,7 @@ jobs:
       - name: Upload tar.xz file to artifacts
         uses: actions/upload-artifact@v4
         with:
-            name: place-documents
+            name: place-documents.tar.xz
             path: place-documents.tar.xz
       - name: Upload updated db to artifacts
         uses: actions/upload-artifact@v4
@@ -63,7 +63,7 @@ jobs:
       - name: Upload parquet metadata to artifacts
         uses: actions/upload-artifact@v4
         with:
-            name: place-metadata
+            name: place-metadata.parquet
             path: archives*.parquet
 
   upload-to-gh-releases:
@@ -80,4 +80,4 @@ jobs:
         run: |
             ls -al
             gh release upload ${{ github.ref_name }} place-documents.tar.xz --clobber
-            gh release upload ${{ github.ref_name }} archives*.parquet --clobber
+            gh release upload ${{ github.ref_name }} place-metadata.parquet --clobber
