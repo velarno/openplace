@@ -24,3 +24,46 @@ jobs:
         with:
             name: sqlite-database
             path: openplace.db
+
+  fetch-place-links:
+    runs-on: ubuntu-latest
+    needs: gather-place-links # TODO: this step isn't required strictly speaking, if the db artifact exists, we can just use that
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v4
+      - name: Install the latest version of uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          version: "latest"
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Download sqlite database backup
+        uses: actions/download-artifact@v4
+        with:
+            name: sqlite-database
+            path: openplace.db
+      - name: Fetch place links
+        run: |
+            uv venv
+            source .venv/bin/activate
+            uv sync
+            openplace list-postings
+            openplace fetch-archives
+            openplace export-archives
+      - name: Compress ZIPs into single tar.xz file
+        run: |
+            tar -Jcf place-documents.tar.xz *.zip
+      - name: Upload tar.xz file to artifacts
+        uses: actions/upload-artifact@v4
+        with:
+            name: place-documents
+            path: place-documents.tar.xz
+      - name: Upload updated db to artifacts
+        uses: actions/upload-artifact@v4
+        with:
+            name: sqlite-database
+            path: openplace.db
+      - name: Upload parquet metadata to artifacts
+        uses: actions/upload-artifact@v4
+        with:
+            name: place-metadata
+            path: archives*.parquet
