@@ -40,12 +40,12 @@ jobs:
         uses: actions/download-artifact@v4
         with:
             name: sqlite-database
-            path: openplace.db
       - name: Fetch place links
         run: |
             uv venv
             source .venv/bin/activate
             uv sync
+            ls -la
             openplace list-postings
             openplace fetch-archives
             openplace export-archives
