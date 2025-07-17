@@ -23,4 +23,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
             name: sqlite-database
-            path: openplace/openplace.db
+            path: openplace.db
