@@ -25,3 +25,12 @@ old_*.py
 *.tar.xz
 *.tar.lzma
 *.tar.lz
+*.parquet
+*.csv
+*.json
+*.jsonl
+*.jsonl.gz
+*.jsonl.bz2
+*.jsonl.xz
+*.jsonl.lzma
+*.jsonl.lz
