@@ -1,0 +1,20 @@
+name: Gather Place Links
+run-name: Gathering Place Links
+on: [push]
+jobs:
+  gather-place-links:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v4
+      - name: Install the latest version of uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          version: "latest"
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: sync package with uv
+        run: |
+            uv venv
+            source .venv/bin/activate
+            uv sync
+            openplace discover

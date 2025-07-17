@@ -1,5 +1,5 @@
-name: Publish Python Wheels using uv
-run-name: ${{ github.actor }} is publishing Python Wheels using uv 🚀
+name: Publish Python Wheels to Github Releases
+run-name: Publishing Python Wheels to Github Releases with uv
 on: [push]
 jobs:
   publish-wheels:
