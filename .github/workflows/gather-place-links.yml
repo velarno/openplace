@@ -18,7 +18,8 @@ jobs:
             source .venv/bin/activate
             uv sync
             openplace discover
-      - name: Archive code coverage results
+            ls -la
+      - name: Push sqlite database to artifacts
         uses: actions/upload-artifact@v4
         with:
             name: sqlite-database
