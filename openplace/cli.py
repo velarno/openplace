@@ -9,7 +9,7 @@ import openplace.storage.local.queries as q
 
 import logging
 import typer
-from typer import Option, Argument
+from typer import Option
 from openplace.tasks.store.types import StorageType
 
 

@@ -1,5 +1,5 @@
 from sqlmodel import Session, select
-from typing import Sequence, Optional
+from typing import Sequence, Optional, Iterator
 
 from openplace.storage.local.models import PostingLink, ArchiveEntry, FetchingStatus, Posting, ArchiveContent
 from openplace.storage.local.settings import connect_to_db
@@ -271,3 +271,34 @@ def get_archive_content_from_path(
     if session is None:
         raise ValueError("Session is required")
     return session.exec(select(ArchiveContent).where(ArchiveContent.path == path)).first()
+
+
+@ensure_session
+def paginate_archive_contents(
+    limit: Optional[int] = None,
+    session: Optional[Session] = None,
+    batch_size: int = 100,
+) -> Iterator[Sequence[ArchiveContent]]:
+    """
+    Paginate through all archive contents.
+
+    Args:
+        limit (Optional[int]): Maximum number of contents to return.
+        session (Session): SQLModel session for database operations.
+        batch_size (int): Number of contents to return in each batch.
+
+    Returns:
+        Iterator[Sequence[ArchiveContent]]: Iterator over batches of archive contents.
+    """
+    if session is None:
+        raise ValueError("Session is required")
+    if limit is not None:
+        return session.exec(select(ArchiveContent).limit(limit)).all()
+    else:
+        pagination = 0
+        while True:
+            contents = session.exec(select(ArchiveContent).offset(pagination).limit(batch_size)).all()
+            if len(contents) == 0:
+                break
+            yield contents
+            pagination += batch_size

@@ -21,6 +21,7 @@ async def extract_markdown(archive_path: Path, persist: bool = True) -> ArchiveC
     """
     Extract the markdown from the given archive path and record the content in the database.
     """
+    # TODO: do not read XML or boil it down to a few lines of text
     logger.info(f"Extracting markdown from {archive_path}")
     posting_id, filename, file_type = parse_archive_name(archive_path.name)
     archive_content = md.convert(archive_path).markdown

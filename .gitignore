@@ -34,3 +34,4 @@ old_*.py
 *.jsonl.xz
 *.jsonl.lzma
 *.jsonl.lz
+*.txt
