@@ -1,0 +1,24 @@
+name: Entity Recognition
+run-name: Entity Recognition with GLiNER (uv script)
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 * * * *'
+jobs:
+  entity-recognition:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v4
+      - name: Install the latest version of uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          version: "latest"
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build Python wheels and publish to github releases
+        run: |
+            export GH_GIST_ID=$(gh gist list --filter "GLiNER" | tail -n 1 | cut -f1)
+            gh gist view --raw $GH_GIST_ID > run-gliner
+            echo "exigences_ou_critere_de_selection\nduree_du_projet\ndate_limite_candidature" > labels.txt
+            chmod +x run-gliner
+            ./run-gliner --help
