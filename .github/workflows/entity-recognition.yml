@@ -23,4 +23,5 @@ jobs:
             gh gist view --raw $GH_GIST_ID > run-gliner
             echo "exigences_ou_critere_de_selection\nduree_du_projet\ndate_limite_candidature" > labels.txt
             chmod +x run-gliner
+            cat run-gliner
             ./run-gliner --help
