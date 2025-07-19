@@ -20,7 +20,8 @@ jobs:
             GH_TOKEN: ${{ secrets.GH_ACTIONS_TOKEN }}
         run: |
             export GH_GIST_ID=$(gh gist list --filter "GLiNER" | tail -n 1 | cut -f1)
-            gh gist view --raw $GH_GIST_ID > run-gliner
+            gh gist clone $GH_GIST_ID
+            ls -la
             echo "exigences_ou_critere_de_selection\nduree_du_projet\ndate_limite_candidature" > labels.txt
             chmod +x run-gliner
             cat run-gliner
