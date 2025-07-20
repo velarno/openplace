@@ -1,4 +1,4 @@
-from sqlmodel import Session, select
+from sqlmodel import Session, select, not_
 from typing import Sequence, Optional, Iterator
 
 from openplace.storage.local.models import PostingLink, ArchiveEntry, FetchingStatus, Posting, ArchiveContent
@@ -49,7 +49,12 @@ def get_posting_links_by_kind(posting_id: int, kind: str, session: Optional[Sess
     return session.exec(select(PostingLink).where(PostingLink.posting_id == posting_id, PostingLink.kind == kind)).all()
 
 @ensure_session
-def list_postings(session: Optional[Session] = None, storage: StorageType = StorageType.LOCAL, limit: int = 100) -> Sequence[Posting]:
+def list_postings(
+    session: Optional[Session] = None,
+    storage: StorageType = StorageType.LOCAL,
+    limit: int = 100,
+    status: Optional[FetchingStatus] = None,
+) -> Sequence[Posting]:
     """
     List all postings.
 
@@ -57,14 +62,17 @@ def list_postings(session: Optional[Session] = None, storage: StorageType = Stor
         session (Session): SQLModel session for database operations.
         storage (StorageType): Storage type.
         limit (int): Maximum number of postings to return.
-
+        status (FetchingStatus): Status of the postings.
     Returns:
         Sequence[Posting]: List of postings.
     """
     if session is None:
         raise ValueError("Session is required")
     if storage == StorageType.LOCAL:
-        return session.exec(select(Posting).limit(limit)).all()
+        query = select(Posting)
+        if status is not None:
+            query = query.where(Posting.fetching_status == status)
+        return session.exec(query.limit(limit)).all()
     else:
         raise ValueError(f"Storage type {storage} not supported")
 
@@ -206,7 +214,10 @@ def get_pending_postings(session: Optional[Session] = None) -> Sequence[Posting]
     return session.exec(select(Posting).where(Posting.fetching_status == FetchingStatus.PENDING)).all()
 
 @ensure_session
-def get_pending_links(limit: int = 100, session: Optional[Session] = None) -> Sequence[Sequence[Posting | PostingLink]]:
+def get_pending_links(
+    limit: Optional[int] = None,
+    session: Optional[Session] = None,
+) -> Sequence[Sequence[Posting | PostingLink]]:
     """
     Get all pending links.
 
@@ -219,13 +230,14 @@ def get_pending_links(limit: int = 100, session: Optional[Session] = None) -> Se
     """
     if session is None:
         raise ValueError("Session is required")
-    
-    return session.exec(
+    query = (
         select(Posting, PostingLink)
         .join(PostingLink)
         .where(PostingLink.fetching_status == FetchingStatus.PENDING)
-        .limit(limit)
-    ).all()
+    )
+    if limit is not None:
+        query = query.limit(limit)
+    return session.exec(query).all()
 
 
 @ensure_session
@@ -272,6 +284,24 @@ def get_archive_content_from_path(
         raise ValueError("Session is required")
     return session.exec(select(ArchiveContent).where(ArchiveContent.path == path)).first()
 
+@ensure_session
+def get_archive_content_by_id(
+    id: int,
+    session: Optional[Session] = None,
+) -> ArchiveContent | None:
+    """
+    Get the file content from the id.
+
+    Args:
+        id (int): ID of the archive content.
+        session (Session): SQLModel session for database operations.
+
+    Returns:
+        ArchiveContent | None: The archive content.
+    """
+    if session is None:
+        raise ValueError("Session is required")
+    return session.exec(select(ArchiveContent).where(ArchiveContent.id == id)).first()
 
 @ensure_session
 def paginate_archive_contents(
@@ -302,3 +332,44 @@ def paginate_archive_contents(
                 break
             yield contents
             pagination += batch_size
+
+@ensure_session
+def get_unprocessed_archive_contents(
+    limit: Optional[int] = None,
+    session: Optional[Session] = None,
+) -> Sequence[ArchiveContent]:
+    """
+    Get the unprocessed archive contents.
+
+    Args:
+        limit (Optional[int]): Maximum number of contents to return.
+        session (Session): SQLModel session for database operations.
+
+    Returns:
+        Sequence[ArchiveContent]: List of unprocessed archive contents.
+    """
+    if session is None:
+        raise ValueError("Session is required")
+    query = select(ArchiveContent).where(not_(ArchiveContent.is_inference_done))
+    if limit is not None:
+        query = query.limit(limit)
+    return session.exec(query).all()
+
+
+@ensure_session
+def set_archive_content_inference_done(
+    id: int,
+    session: Optional[Session] = None,
+) -> None:
+    """
+    Set the inference done flag of an archive content.
+    """
+    if session is None:
+        raise ValueError("Session is required")
+    archive_content = session.exec(select(ArchiveContent).where(ArchiveContent.id == id)).first()
+    if archive_content is None:
+        raise ValueError(f"Archive content with id {id} not found")
+    archive_content.is_inference_done = True
+    session.add(archive_content)
+    session.commit()
+

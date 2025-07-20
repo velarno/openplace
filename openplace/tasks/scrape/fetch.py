@@ -122,11 +122,14 @@ def fetch_dce_file(
         logger.warning(f"Content-Type is unexpected: {response_download.headers['Content-Type']}")
 
     regex_attachment = r'^attachment; filename="([^"]+)";$'
-    content_disposition = response_download.headers['Content-Disposition']
+    content_disposition = response_download.headers.get('Content-Disposition', None)
+    if not content_disposition:
+        logger.error("Content-Disposition header not found for posting_id=%s.", posting_id)
+        return None, None
     match_filename = re.match(regex_attachment, content_disposition)
     if not match_filename:
         logger.error("Could not extract filename from Content-Disposition header: %s", content_disposition)
-        raise ValueError(f"Could not extract filename from Content-Disposition header: {content_disposition}")
+        return None, None
     filename_dce = match_filename.groups()[0]
 
     file_size_dce = file_writer(
@@ -166,12 +169,19 @@ def fetch_reglement_file(
         logger.error("Failed to fetch reglement file for posting_id=%s, status_code=%d", posting_id, response_reglement.status_code)
 
     regex_attachment = r'^attachment; filename="([^"]+)";$'
-    content_disposition = response_reglement.headers.get('Content-Disposition', '')
+    content_disposition = response_reglement.headers.get('Content-Disposition', None)
+    if not content_disposition:
+        logger.error("Content-Disposition header not found for posting_id=%s.", posting_id)
+        return None, None
+
     match_filename = re.match(regex_attachment, content_disposition)
     if not match_filename:
         logger.error("Could not extract filename from Content-Disposition header for posting_id=%s.", posting_id)
 
-    filename_reglement = match_filename.groups()[0]
+    filename_reglement = match_filename.groups()[0] if match_filename else None
+
+    if not filename_reglement:
+        logger.warning("Could not extract filename from Content-Disposition header for posting_id=%s.", posting_id)
     logger.info("Saving reglement file '%s' for posting_id=%s.", filename_reglement, posting_id)
     file_size_reglement = file_writer(
         posting_id,
@@ -257,7 +267,10 @@ def fetch_avis_file(
         raise ValueError(f"Failed to fetch avis file: {response_avis.status_code}")
 
     regex_attachment = r'^attachment; filename=([^;]+);'
-    content_disposition = response_avis.headers.get('Content-Disposition', '')
+    content_disposition = response_avis.headers.get('Content-Disposition', None)
+    if not content_disposition:
+        logger.error("Content-Disposition header not found for posting_id=%s.", posting_id)
+        return None, None
     match_filename = re.match(regex_attachment, content_disposition)
     if not match_filename:
         logger.error("Could not extract filename from Content-Disposition header for posting_id=%s.", posting_id)
@@ -340,5 +353,3 @@ class PostingFileFetcher:
             return self.avis(self.posting_id, link, self.file_writer)
         else:
             raise ValueError(f"Unknown file kind: {kind}")
-
-        

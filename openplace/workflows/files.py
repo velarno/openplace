@@ -88,9 +88,11 @@ def download_pending_files(
             q.record_archive_entries(archive_name, posting.id, session)
             logger.debug(f"Created zip entry for filename={file_name}, posting_id={posting.id}")
             num_success += 1
+            q.update_posting_fetching_status(posting.id, q.FetchingStatus.SUCCESS, session)
         else:
             num_failure += 1
-        q.update_posting_fetching_status(posting.id, q.FetchingStatus.SUCCESS, session)
+            q.update_posting_fetching_status(posting.id, q.FetchingStatus.FAILURE, session)
+
         logger.info(f"Completed fetch_posting_files for posting_id={posting.id}")
 
     logger.info(f"Completed `retrieve_pending_tasks`, found {num_success} success and {num_failure} failures.")

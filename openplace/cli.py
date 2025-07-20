@@ -9,6 +9,8 @@ import openplace.storage.local.queries as q
 
 import logging
 import typer
+
+from pathlib import Path
 from typer import Option
 from openplace.tasks.store.types import StorageType
 
@@ -42,14 +44,16 @@ def discover(
 
 @app.command()
 def list_postings(
-    storage: StorageType = Option(StorageType.LOCAL, "--storage", "-s", help="Storage type"),
+    storage: StorageType = Option(StorageType.LOCAL, "--storage", "-S", help="Storage type"),
     limit: int = Option(100, "--limit", "-l", help="Maximum number of postings to return"),
+    status: str = Option(None, "--status", "-s", help="Status of the postings"),
 ):
     """
     List postings.
     """
+
     if storage == StorageType.LOCAL:
-        postings = q.list_postings(storage=storage, limit=limit)
+        postings = q.list_postings(storage=storage, limit=limit, status=status)
         if postings:
             typer.echo("id|org_acronym|organization|title|fetching_status|last_updated")
             for posting in postings:
@@ -127,6 +131,56 @@ def export_archives(
     if debug:
         logging.basicConfig(level=logging.DEBUG)
     export_archives_task(output_dir=output_dir, output_format=output_format)
+
+
+@app.command()
+def export_archive_content(
+    archive_content_id: int = Option(..., "--archive-content-id", "-i", help="Archive content ID"),
+    storage: StorageType = Option(StorageType.LOCAL, "--storage", "-S", help="Storage type", show_default=True),
+    output_file: str = Option(None, "--output-file", "-o", help="Output file name, else will name it archive_content_<id>.txt unless --terminal is used"),
+    to_terminal: bool = Option(False, "--terminal", "-t", help="Output to terminal", show_default=True),
+    ):
+    """
+    Export an archive content to a file.
+    """
+    if storage == StorageType.LOCAL:
+        archive_content = q.get_archive_content_by_id(archive_content_id)
+        if archive_content is None:
+            typer.echo(f"Archive content with id {archive_content_id} not found")
+            return
+        if archive_content_id != archive_content.id:
+            typer.echo(f"Archive content id mismatch: {archive_content_id} != {archive_content.id}")
+            return
+        if to_terminal:
+            typer.echo(archive_content.content)
+        else:
+            output_path = Path(output_file) or Path(f"archive_content_{archive_content_id}.txt")
+            output_path.write_text(archive_content.content)
+            typer.echo(f"Archive content exported to {output_path}")
+    else:
+        raise ValueError(f"Storage type {storage} not supported")
+
+@app.command()
+def bulk_export_archive_contents(
+    storage: StorageType = Option(StorageType.LOCAL, "--storage", "-S", help="Storage type", show_default=True),
+    limit: int = Option(100, "--limit", "-l", help="Limit the number of archive contents to list", show_default=True),
+    output_dir: str = Option(os.getcwd(), "--output-dir", "-o", help="Output directory, defaults to current working directory", show_default=True),
+    silent: bool = Option(False, "--silent", "-s", help="Silent mode", show_default=True),
+):
+    """
+    List unprocessed archive contents.
+    """
+    if storage == StorageType.LOCAL:
+        archive_contents = q.get_unprocessed_archive_contents(limit=limit)
+        if not silent:
+            typer.echo(f"Found {len(archive_contents)} unprocessed archive contents")
+        for archive_content in archive_contents:
+            output_path = Path(output_dir) / f"{archive_content.id}.txt"
+            output_path.write_text(archive_content.content)
+            if not silent:
+                typer.echo(f"Archive content exported to {output_path}")
+    else:
+        raise ValueError(f"Storage type {storage} not supported")
 
 def main():
     app()

@@ -13,6 +13,8 @@ def detect_content_type(response: requests.Response) -> str:
 
 def local_archive_name(posting_id: str, filename: str, file_type: str) -> str:
     """Provides a standardized naming convention for local archives"""
+    if not filename:
+        raise ValueError("Filename is required")
     stem = Path(filename).stem
     return f'{posting_id}.{stem}.{file_type}.zip'
 
@@ -35,6 +37,8 @@ def fs_writer(posting_id: str, filename: str, file_type: str, response: requests
     """
     Write a file to the local filesystem.
     """
+    if not filename:
+        raise ValueError("Filename is required")
     content_type = detect_content_type(response)
     archive_name = local_archive_name(posting_id, filename, file_type)
     logger.debug(f"Writing file to {archive_name} ({content_type})")
