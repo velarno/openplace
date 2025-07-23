@@ -45,6 +45,14 @@ jobs:
               uv sync
               openplace bulk-export-archive-contents --limit 100 --output-dir . --silent
               ls -la
+        - name: Install linux build utils for tokenizers add-on
+          run: |
+            apt install -y make cmake build-essential
+            apt install -y \
+              libboost-system-dev libboost-thread-dev \
+              libboost-program-options-dev libboost-test-dev
+            apt update -y && apt upgrade -y
+            
         - name: Download GLiNER uv script from Gist & run it
           env:
               GH_TOKEN: ${{ secrets.GH_ACTIONS_TOKEN }}
