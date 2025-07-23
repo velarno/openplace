@@ -121,6 +121,8 @@ def extract_markdown(
 def export_archives(
     output_dir: str = Option(".", "--output-dir", "-o", help="Output directory", show_default=True),
     output_format: str = Option("parquet", "--output-format", "-f", help="Output format", show_default=True),
+    compression: str = Option("gzip", "--compression", "-C", help="Compression method for jsonl and csv", show_default=True),
+    filename_date: bool = Option(False, "--filename-date", "-D", help="Include date in filename (output files will be named archives-<date>.parquet, archives-<date>.jsonl.gz, etc.)", show_default=True),
     debug: bool = Option(False, "--debug", "-D", help="Debug mode", show_default=True),
 ):
     """
@@ -130,7 +132,7 @@ def export_archives(
     """
     if debug:
         logging.basicConfig(level=logging.DEBUG)
-    export_archives_task(output_dir=output_dir, output_format=output_format)
+    export_archives_task(output_dir=output_dir, output_format=output_format, compression=compression, use_date_in_filename=filename_date)
 
 
 @app.command()

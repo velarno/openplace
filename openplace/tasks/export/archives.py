@@ -19,26 +19,33 @@ def connect_to_database(db_path: str = "openplace.db") -> Connection:
     con.execute("USE openplace;")
     return con
 
-def sqlite_export(con: Connection, output_dir: str, table_name: str, output_format: str = "parquet") -> None:
+def sqlite_export(
+    con: Connection,
+    output_dir: str,
+    table_name: str,
+    output_format: str = "parquet",
+    compression: str = "gzip",
+    use_date_in_filename: bool = False,
+) -> None:
     """
     Export the given table to the given directory.
     """
-    date = datetime.now().strftime("%Y-%m-%d")
-    # TODO: add more file naming options, date is needlessly redundant when records don't change much
+    date = datetime.now().strftime("%Y-%m-%d") if use_date_in_filename else ""
+    filename = f"archives-{date}" if use_date_in_filename else "archives"
     match output_format:
         case "parquet":
-            con.execute(f"COPY (SELECT * FROM {table_name}) TO '{output_dir}/archives-{date}.parquet' (FORMAT 'parquet')")
-            logger.info(f"Exported {table_name} to {output_dir}/archives-{date}.parquet")
+            con.execute(f"COPY (SELECT * FROM {table_name}) TO '{output_dir}/{filename}.parquet' (FORMAT 'parquet')")
+            logger.info(f"Exported {table_name} to {output_dir}/{filename}.parquet")
         case "jsonl":
-            con.execute(f"COPY (SELECT * FROM {table_name}) TO '{output_dir}/archives-{date}.jsonl' (FORMAT 'jsonl', COMPRESSION 'gzip')")
-            logger.info(f"Exported {table_name} to {output_dir}/archives-{date}.jsonl.gz")
+            con.execute(f"COPY (SELECT * FROM {table_name}) TO '{output_dir}/{filename}.jsonl' (FORMAT 'jsonl', COMPRESSION '{compression}')")
+            logger.info(f"Exported {table_name} to {output_dir}/{filename}.jsonl.gz")
         case "csv":
-            con.execute(f"COPY (SELECT * FROM {table_name}) TO '{output_dir}/archives-{date}.csv' (FORMAT 'csv', HEADER true, COMPRESSION 'gzip')")
-            logger.info(f"Exported {table_name} to {output_dir}/archives-{date}.csv.gz")
+            con.execute(f"COPY (SELECT * FROM {table_name}) TO '{output_dir}/{filename}.csv' (FORMAT 'csv', HEADER true, COMPRESSION '{compression}')")
+            logger.info(f"Exported {table_name} to {output_dir}/{filename}.csv.gz")
         case _:
             raise ValueError(f"Invalid output format: {output_format}")
 
-def export_archives(output_dir: str = ".", output_format: str = "parquet") -> str:
+def export_archives(output_dir: str = ".", output_format: str = "parquet", compression: str = "gzip", use_date_in_filename: bool = False) -> str:
     """
     Export the archives from the database.
     If no output directory is provided, the archives will be exported to a file named "archives.parquet" in the current directory.
@@ -47,12 +54,12 @@ def export_archives(output_dir: str = ".", output_format: str = "parquet") -> st
     Args:
         output_dir: The directory to export the archives to.
         output_format: The format to export the archives to.
-
+        compression: The compression to use (only supported for jsonl and csv)
     Returns:
         The path to the exported file.
     """
     logger.info(f"Exporting archives to {output_dir} in {output_format} format")
     con = connect_to_database()
-    sqlite_export(con, output_dir, "archivecontent", output_format)
+    sqlite_export(con, output_dir, "archivecontent", output_format, compression, use_date_in_filename)
     con.close()
     return output_dir
