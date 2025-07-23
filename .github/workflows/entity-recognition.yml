@@ -50,7 +50,8 @@ jobs:
             sudo apt install -y make cmake build-essential
             sudo apt install -y \
               libboost-system-dev libboost-thread-dev \
-              libboost-program-options-dev libboost-test-dev
+              libboost-program-options-dev libboost-test-dev \
+              libmecab-dev
             sudo apt update -y && sudo apt upgrade -y
             
         - name: Download GLiNER uv script from Gist & run it
