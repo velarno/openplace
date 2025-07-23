@@ -75,7 +75,12 @@ jobs:
               cat $LABELS_FILE
               chmod +x gliner-infer-labels
               echo "Doing a dry run to cache dependencies..."
-              ./gliner-infer-labels --help > /dev/null 2>&1 || echo "GLiNER not found"
+              echo "just_a_dry_run" > /tmp/just-a-dry-run.txt
+              ./gliner-infer-labels \
+                --model="knowledgator/gliner-x-large"\
+                /tmp/just-a-dry-run.txt $LABELS_FILE > /dev/null 2>&1 \
+                && echo "GLiNER CLI found" \
+                || echo "GLiNER CLI not found"
               for file in *.txt; do
                   fname=$(basename $file)
                   echo "Processing $fname"
