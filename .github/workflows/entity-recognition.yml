@@ -37,7 +37,7 @@ jobs:
               github-token: ${{ secrets.GH_ACTIONS_TOKEN }}
               run-id: ${{ needs.get-scraper-run-id.outputs.RUN_ID }}
               name: sqlite-database-after-discover
-              path: openplace.db
+              path: openplace/openplace.db
         - name: Download archive contents
           run: |
               ls -la
