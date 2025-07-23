@@ -15,6 +15,18 @@ jobs:
         with:
           version: "latest"
           github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Download SQLite database from artifacts
+        uses: actions/download-artifact@v4
+        with:
+            name: sqlite-database-after-discover
+            path: openplace.db
+      - name: Download archive contents
+        run: |
+            uv venv
+            source .venv/bin/activate
+            uv sync
+            openplace bulk-export-archive-contents --limit 100 --output-dir . --silent
+            ls -la
       - name: Download GLiNER uv script from Gist & run it
         env:
             GH_TOKEN: ${{ secrets.GH_ACTIONS_TOKEN }}
