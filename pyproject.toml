@@ -27,3 +27,6 @@ dev = [
 
 [tool.uv]
 package=true
+
+[tool.setuptools]
+packages = ["openplace"]
