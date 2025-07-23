@@ -1,6 +1,9 @@
 name: Gather Place Links
 run-name: Gathering Place Links
-on: [push]
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 0 * * *'
 jobs:
   gather-place-links:
     runs-on: ubuntu-latest
