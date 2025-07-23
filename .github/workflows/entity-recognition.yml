@@ -5,37 +5,53 @@ on:
   schedule:
     - cron: '0 * * * *'
 jobs:
-  entity-recognition:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check out repository code
-        uses: actions/checkout@v4
-      - name: Install the latest version of uv
-        uses: astral-sh/setup-uv@v6
-        with:
-          version: "latest"
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-      - name: Download SQLite database from artifacts
-        uses: actions/download-artifact@v4
-        with:
-            name: sqlite-database-after-discover
-            path: openplace.db
-      - name: Download archive contents
-        run: |
-            uv venv
-            source .venv/bin/activate
-            uv sync
-            openplace bulk-export-archive-contents --limit 100 --output-dir . --silent
-            ls -la
-      - name: Download GLiNER uv script from Gist & run it
-        env:
-            GH_TOKEN: ${{ secrets.GH_ACTIONS_TOKEN }}
-        run: |
-            export GH_GIST_ID=$(gh gist list --filter "GLiNER" | tail -n 1 | cut -f1)
-            gh gist clone $GH_GIST_ID gliner-gist
-            ls gliner-gist
-            cp gliner-gist/* .
-            ls -la
-            echo "exigences_ou_critere_de_selection\nduree_du_projet\ndate_limite_candidature" > labels.txt
-            chmod +x gliner-infer-labels
-            ./gliner-infer-labels --help
+    get-scraper-run-id:
+        runs-on: ubuntu-latest
+        outputs:
+            RUN_ID: ${{ steps.find-run-id.outputs.RUN_ID }}
+        steps:
+            - name: Check out repository code
+              uses: actions/checkout@v4
+            - name: Find run id for latest sqlite export
+              id: find-run-id
+              run: |
+                  export RUN_ID=$(gh run list -s success --workflow=gather-place-links.yml --json databaseId --limit 1 --jq ".[].databaseId")
+                  echo "RUN_ID=${RUN_ID}" >> $GITHUB_OUTPUT
+
+    entity-recognition:
+      needs: get-scraper-run-id
+      runs-on: ubuntu-latest
+      steps:
+        - name: Check out repository code
+          uses: actions/checkout@v4
+        - name: Install the latest version of uv
+          uses: astral-sh/setup-uv@v6
+          with:
+            version: "latest"
+            github-token: ${{ secrets.GITHUB_TOKEN }}
+        - name: Download SQLite database from artifacts
+          uses: actions/download-artifact@v4
+          with:
+              github-token: ${{ secrets.GH_ACTIONS_TOKEN }}
+              run-id: ${{ needs.get-scraper-run-id.outputs.RUN_ID }}
+              name: sqlite-database-after-discover
+              path: openplace.db
+        - name: Download archive contents
+          run: |
+              uv venv
+              source .venv/bin/activate
+              uv sync
+              openplace bulk-export-archive-contents --limit 100 --output-dir . --silent
+              ls -la
+        - name: Download GLiNER uv script from Gist & run it
+          env:
+              GH_TOKEN: ${{ secrets.GH_ACTIONS_TOKEN }}
+          run: |
+              export GH_GIST_ID=$(gh gist list --filter "GLiNER" | tail -n 1 | cut -f1)
+              gh gist clone $GH_GIST_ID gliner-gist
+              ls gliner-gist
+              cp gliner-gist/* .
+              ls -la
+              echo "exigences_ou_critere_de_selection\nduree_du_projet\ndate_limite_candidature" > labels.txt
+              chmod +x gliner-infer-labels
+              ./gliner-infer-labels --help
