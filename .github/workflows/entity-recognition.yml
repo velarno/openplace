@@ -54,6 +54,11 @@ jobs:
               ls gliner-gist
               cp gliner-gist/* .
               ls -la
-              echo "exigences_ou_critere_de_selection\nduree_du_projet\ndate_limite_candidature" > labels.txt
+              echo "critere_de_selection_ou_exigence\nduree_du_projet\ndate_limite_candidature\ntype_de_livrable\nprix_ou_budget_prevu_en_euros\n" > labels.txt
               chmod +x gliner-infer-labels
-              ./gliner-infer-labels --help
+              for file in *.txt; do
+                  echo "Processing $file"
+                  ./gliner-infer-labels --model="knowledgator/gliner-x-large" --input-file $file --output-file $file.jsonl --labels-file labels.txt
+                  cat $file.jsonl
+                  echo "--------------------------------"
+              done
