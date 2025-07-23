@@ -56,6 +56,7 @@ jobs:
               ls -la
               echo "critere_de_selection_ou_exigence\nduree_du_projet\ndate_limite_candidature\ntype_de_livrable\nprix_ou_budget_prevu_en_euros\n" > labels.txt
               chmod +x gliner-infer-labels
+              ./gliner-infer-labels --help > /dev/null 2>&1 || echo "GLiNER not found"
               for file in *.txt; do
                   echo "Processing $file"
                   ./gliner-infer-labels --model="knowledgator/gliner-x-large" --input-file $file --output-file $file.jsonl --labels-file labels.txt
