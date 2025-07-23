@@ -71,7 +71,7 @@ jobs:
               for file in *.txt; do
                   fname=$(basename $file)
                   echo "Processing $fname"
-                  ./gliner-infer-labels --model="knowledgator/gliner-x-large" $file $LABELS_FILE > $fname.jsonl
+                  ./gliner-infer-labels --hide-progress --model="knowledgator/gliner-x-large" $file $LABELS_FILE > $fname.jsonl
                   cat $fname.jsonl
                   echo "--------------------------------"
               done
