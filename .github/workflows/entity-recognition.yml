@@ -54,13 +54,24 @@ jobs:
               ls gliner-gist
               cp gliner-gist/* .
               ls -la
-              echo "critere_de_selection_ou_exigence\nduree_du_projet\ndate_limite_candidature\ntype_de_livrable\nprix_ou_budget_prevu_en_euros\n" > labels.txt
+              labels=()
+              labels+=("critere_de_selection_ou_exigence")
+              labels+=("duree_du_projet")
+              labels+=("date_limite_candidature")
+              labels+=("type_de_livrable")
+              labels+=("prix_ou_budget_prevu_en_euros")
+              LABELS_FILE=labels.txt
+              for label in "${labels[@]}"; do
+                  echo $label >> $LABELS_FILE
+              done
+              cat $LABELS_FILE
               chmod +x gliner-infer-labels
+              echo "Doing a dry run to cache dependencies..."
               ./gliner-infer-labels --help > /dev/null 2>&1 || echo "GLiNER not found"
               for file in *.txt; do
                   fname=$(basename $file)
                   echo "Processing $fname"
-                  ./gliner-infer-labels --model="knowledgator/gliner-x-large" $file labels.txt > $fname.jsonl
+                  ./gliner-infer-labels --model="knowledgator/gliner-x-large" $file $LABELS_FILE > $fname.jsonl
                   cat $fname.jsonl
                   echo "--------------------------------"
               done
