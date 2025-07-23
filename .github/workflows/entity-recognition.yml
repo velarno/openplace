@@ -58,8 +58,9 @@ jobs:
               chmod +x gliner-infer-labels
               ./gliner-infer-labels --help > /dev/null 2>&1 || echo "GLiNER not found"
               for file in *.txt; do
-                  echo "Processing $file"
-                  ./gliner-infer-labels --model="knowledgator/gliner-x-large" --input-file $file --output-file $file.jsonl --labels-file labels.txt
-                  cat $file.jsonl
+                  fname=$(basename $file)
+                  echo "Processing $fname"
+                  ./gliner-infer-labels --model="knowledgator/gliner-x-large" $file labels.txt > $fname.jsonl
+                  cat $fname.jsonl
                   echo "--------------------------------"
               done
