@@ -24,13 +24,17 @@ def sqlite_export(con: Connection, output_dir: str, table_name: str, output_form
     Export the given table to the given directory.
     """
     date = datetime.now().strftime("%Y-%m-%d")
+    # TODO: add more file naming options, date is needlessly redundant when records don't change much
     match output_format:
         case "parquet":
             con.execute(f"COPY (SELECT * FROM {table_name}) TO '{output_dir}/archives-{date}.parquet' (FORMAT 'parquet')")
             logger.info(f"Exported {table_name} to {output_dir}/archives-{date}.parquet")
+        case "jsonl":
+            con.execute(f"COPY (SELECT * FROM {table_name}) TO '{output_dir}/archives-{date}.jsonl' (FORMAT 'jsonl', COMPRESSION 'gzip')")
+            logger.info(f"Exported {table_name} to {output_dir}/archives-{date}.jsonl.gz")
         case "csv":
-            con.execute(f"COPY (SELECT * FROM {table_name}) TO '{output_dir}/archives-{date}.csv' (FORMAT 'csv', HEADER true)")
-            logger.info(f"Exported {table_name} to {output_dir}/archives-{date}.csv")
+            con.execute(f"COPY (SELECT * FROM {table_name}) TO '{output_dir}/archives-{date}.csv' (FORMAT 'csv', HEADER true, COMPRESSION 'gzip')")
+            logger.info(f"Exported {table_name} to {output_dir}/archives-{date}.csv.gz")
         case _:
             raise ValueError(f"Invalid output format: {output_format}")
 
