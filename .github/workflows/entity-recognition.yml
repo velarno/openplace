@@ -78,9 +78,7 @@ jobs:
               echo "just_a_dry_run" > /tmp/just-a-dry-run.txt
               ./gliner-infer-labels \
                 --model="knowledgator/gliner-x-large"\
-                /tmp/just-a-dry-run.txt $LABELS_FILE > /dev/null 2>&1 \
-                && echo "GLiNER CLI found" \
-                || echo "GLiNER CLI not found"
+                /tmp/just-a-dry-run.txt $LABELS_FILE
               for file in *.txt; do
                   fname=$(basename $file)
                   echo "Processing $fname"
