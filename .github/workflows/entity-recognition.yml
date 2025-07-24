@@ -54,7 +54,7 @@ jobs:
               libmecab-dev
             sudo apt update -y && sudo apt upgrade -y
             
-        - name: Download GLiNER uv script from Gist & run it (batch size: ${{ env.BATCH_SIZE }})
+        - name: Download GLiNER uv script from Gist & run it
           env:
               GH_TOKEN: ${{ secrets.GH_ACTIONS_TOKEN }}
               BATCH_SIZE: 10
