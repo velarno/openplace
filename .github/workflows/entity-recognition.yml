@@ -1,103 +1,103 @@
 name: Entity Recognition
 run-name: Entity Recognition with GLiNER (uv script)
+
 on:
   workflow_dispatch:
   schedule:
     - cron: '0 * * * *'
 jobs:
-    get-scraper-run-id:
-        runs-on: ubuntu-latest
-        env:
-            GH_TOKEN: ${{ secrets.GH_ACTIONS_TOKEN }}
-        outputs:
-            RUN_ID: ${{ steps.find-run-id.outputs.RUN_ID }}
-        steps:
-            - name: Check out repository code
-              uses: actions/checkout@v4
-            - name: Find run id for latest sqlite export
-              id: find-run-id
-              run: |
-                  export RUN_ID=$(gh run list -s success --workflow=gather-place-links.yml --json databaseId --limit 1 --jq ".[].databaseId")
-                  echo "RUN_ID=${RUN_ID}" >> $GITHUB_OUTPUT
+  get-scraper-run-id:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.GH_ACTIONS_TOKEN }}
+    outputs:
+      RUN_ID: ${{ steps.find-run-id.outputs.RUN_ID }}
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v4
+      - name: Find run id for latest sqlite export
+        id: find-run-id
+        run: |
+          export RUN_ID=$(gh run list -s success --workflow=gather-place-links.yml --json databaseId --limit 1 --jq ".[].databaseId")
+          echo "RUN_ID=${RUN_ID}" >> $GITHUB_OUTPUT
 
-    entity-recognition:
-      needs: get-scraper-run-id
-      runs-on: ubuntu-latest
-      steps:
-        - name: Check out repository code
-          uses: actions/checkout@v4
-        - name: Install the latest version of uv
-          uses: astral-sh/setup-uv@v6
-          with:
-            version: "latest"
-            github-token: ${{ secrets.GITHUB_TOKEN }}
-        - name: Download SQLite database from artifacts
-          uses: actions/download-artifact@v4
-          with:
-              github-token: ${{ secrets.GH_ACTIONS_TOKEN }}
-              run-id: ${{ needs.get-scraper-run-id.outputs.RUN_ID }}
-              name: sqlite-database-after-fetch-archives
-        - name: Download archive contents
-          run: |
-              ls -la
-              uv venv
-              source .venv/bin/activate
-              uv sync
-              openplace bulk-export-archive-contents --limit 100 --output-dir . --silent
-              ls -la
-        - name: Install linux build utils for tokenizers add-on
-          run: |
-            sudo apt install -y make cmake build-essential
-            sudo apt install -y \
-              libboost-system-dev libboost-thread-dev \
-              libboost-program-options-dev libboost-test-dev \
-              libmecab-dev
-            sudo apt update -y && sudo apt upgrade -y
-            
-        - name: Download GLiNER uv script from Gist & run it
-          env:
-              GH_TOKEN: ${{ secrets.GH_ACTIONS_TOKEN }}
-              BATCH_SIZE: 10
-          run: |
-              export GH_GIST_ID=$(gh gist list --filter "GLiNER" | tail -n 1 | cut -f1)
-              gh gist clone $GH_GIST_ID gliner-gist
-              ls gliner-gist
-              cp gliner-gist/* .
-              ls -la
-              labels=()
-              labels+=("critere_de_selection_ou_exigence")
-              labels+=("duree_du_projet")
-              labels+=("date_limite_candidature")
-              labels+=("type_de_livrable")
-              labels+=("prix_ou_budget_prevu_en_euros")
-              LABELS_FILE=labels.txt
-              for label in "${labels[@]}"; do
-                  echo $label >> $LABELS_FILE
-              done
-              cat $LABELS_FILE
-              chmod +x gliner-infer-labels
-              echo "Doing a dry run to cache dependencies..."
-              echo "just_a_dry_run" > /tmp/just-a-dry-run.txt
-              ./gliner-infer-labels \
-                --model="knowledgator/gliner-x-large"\
-                /tmp/just-a-dry-run.txt $LABELS_FILE
-              NUM_FILES=$(ls *.txt | wc -l)
-              NUM_PROCESSED=0
-              for file in *.txt; do
-                  fname=$(basename $file)
-                  echo "Processing $fname"
-                  ./gliner-infer-labels --hide-progress --model="knowledgator/gliner-x-large" $file $LABELS_FILE > $fname.jsonl
-                  cat $fname.jsonl
-                  echo "--------------------------------"
-                  NUM_PROCESSED=$((NUM_PROCESSED + 1))
-                  echo "Processed $NUM_PROCESSED/$NUM_FILES files"
-                  if [ $NUM_PROCESSED -ge $BATCH_SIZE ]; then
-                      break
-                  fi
-              done
-              ls *.jsonl
-        - name: Upload JSONL files as artifacts
-          uses: actions/upload-artifact@v4
-          with:
-              name: entity-recognition-results
-              path: *.jsonl
+  entity-recognition:
+    needs: get-scraper-run-id
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v4
+      - name: Install the latest version of uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          version: "latest"
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Download SQLite database from artifacts
+        uses: actions/download-artifact@v4
+        with:
+          github-token: ${{ secrets.GH_ACTIONS_TOKEN }}
+          run-id: ${{ needs.get-scraper-run-id.outputs.RUN_ID }}
+          name: sqlite-database-after-fetch-archives
+      - name: Download archive contents
+        run: |
+          ls -la
+          uv venv
+          source .venv/bin/activate
+          uv sync
+          openplace bulk-export-archive-contents --limit 100 --output-dir . --silent
+          ls -la
+      - name: Install linux build utils for tokenizers add-on
+        run: |
+          sudo apt install -y make cmake build-essential
+          sudo apt install -y \
+            libboost-system-dev libboost-thread-dev \
+            libboost-program-options-dev libboost-test-dev \
+            libmecab-dev
+          sudo apt update -y && sudo apt upgrade -y
+          
+      - name: Download GLiNER uv script from Gist & run it
+        env:
+          GH_TOKEN: ${{ secrets.GH_ACTIONS_TOKEN }}
+          BATCH_SIZE: 10
+        run: |
+          export GH_GIST_ID=$(gh gist list --filter "GLiNER" | tail -n 1 | cut -f1)
+          gh gist clone $GH_GIST_ID gliner-gist
+          ls gliner-gist
+          cp gliner-gist/* .
+          ls -la
+          labels=()
+          labels+=("critere_de_selection_ou_exigence")
+          labels+=("duree_du_projet")
+          labels+=("date_limite_candidature")
+          labels+=("type_de_livrable")
+          labels+=("prix_ou_budget_prevu_en_euros")
+          LABELS_FILE=labels.txt
+          for label in "${labels[@]}"; do
+            echo $label >> $LABELS_FILE
+          done
+          cat $LABELS_FILE
+          chmod +x gliner-infer-labels
+          echo "Doing a dry run to cache dependencies..."
+          echo "just_a_dry_run" > /tmp/just-a-dry-run.txt
+          ./gliner-infer-labels \
+            --model="knowledgator/gliner-x-large"\
+            /tmp/just-a-dry-run.txt $LABELS_FILE
+          NUM_FILES=$(ls *.txt | wc -l)
+          NUM_PROCESSED=0
+          for file in *.txt; do
+            fname=$(basename $file)
+            echo "Processing $fname"
+            ./gliner-infer-labels --hide-progress --model="knowledgator/gliner-x-large" $file $LABELS_FILE > $fname.jsonl
+            cat $fname.jsonl
+            echo "--------------------------------"
+            NUM_PROCESSED=$((NUM_PROCESSED + 1))
+            if [ $NUM_PROCESSED -ge $BATCH_SIZE ]; then
+              break
+            fi
+          done
+          ls *.jsonl
+      - name: Upload JSONL files as artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: entity-recognition-results
+          path: *.jsonl
