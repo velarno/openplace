@@ -108,7 +108,9 @@ jobs:
           path: ner-results.tar.gz
 
   ingest-labels:
-    needs: entity-recognition
+    needs:
+      - entity-recognition
+      - get-scraper-run-id
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository code
