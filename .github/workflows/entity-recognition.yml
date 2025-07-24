@@ -58,7 +58,7 @@ jobs:
       - name: Download GLiNER uv script from Gist & run it
         env:
           GH_TOKEN: ${{ secrets.GH_ACTIONS_TOKEN }}
-          BATCH_SIZE: 10
+          BATCH_SIZE: 3
         run: |
           export GH_GIST_ID=$(gh gist list --filter "GLiNER" | tail -n 1 | cut -f1)
           gh gist clone $GH_GIST_ID gliner-gist
@@ -91,6 +91,7 @@ jobs:
             cat $fname.jsonl
             echo "--------------------------------"
             NUM_PROCESSED=$((NUM_PROCESSED + 1))
+            echo "Processed $NUM_PROCESSED/$NUM_FILES files"
             if [ $NUM_PROCESSED -ge $BATCH_SIZE ]; then
               break
             fi
@@ -104,3 +105,33 @@ jobs:
         with:
           name: entity-recognition-results
           path: ner-results.tar.gz
+
+  ingest-labels:
+    needs: entity-recognition
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v4
+      - name: Install the latest version of uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          version: "latest"
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Download JSONL files from artifacts
+        uses: actions/download-artifact@v4
+        with:
+          github-token: ${{ secrets.GH_ACTIONS_TOKEN }}
+          name: entity-recognition-results
+      - name: Ingest labels
+        run: |
+          ls -la
+          uv venv
+          source .venv/bin/activate
+          uv sync
+          openplace bulk-ingest-labels --input-dir . --id-source filename
+          ls -la
+      - name: Upload SQLite database as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sqlite-database-with-labels
+          path: openplace.db
