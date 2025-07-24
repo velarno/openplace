@@ -54,9 +54,10 @@ jobs:
               libmecab-dev
             sudo apt update -y && sudo apt upgrade -y
             
-        - name: Download GLiNER uv script from Gist & run it
+        - name: Download GLiNER uv script from Gist & run it (batch size: ${{ env.BATCH_SIZE }})
           env:
               GH_TOKEN: ${{ secrets.GH_ACTIONS_TOKEN }}
+              BATCH_SIZE: 10
           run: |
               export GH_GIST_ID=$(gh gist list --filter "GLiNER" | tail -n 1 | cut -f1)
               gh gist clone $GH_GIST_ID gliner-gist
@@ -80,10 +81,23 @@ jobs:
               ./gliner-infer-labels \
                 --model="knowledgator/gliner-x-large"\
                 /tmp/just-a-dry-run.txt $LABELS_FILE
+              NUM_FILES=$(ls *.txt | wc -l)
+              NUM_PROCESSED=0
               for file in *.txt; do
                   fname=$(basename $file)
                   echo "Processing $fname"
                   ./gliner-infer-labels --hide-progress --model="knowledgator/gliner-x-large" $file $LABELS_FILE > $fname.jsonl
                   cat $fname.jsonl
                   echo "--------------------------------"
+                  NUM_PROCESSED=$((NUM_PROCESSED + 1))
+                  echo "Processed $NUM_PROCESSED/$NUM_FILES files"
+                  if [ $NUM_PROCESSED -ge $BATCH_SIZE ]; then
+                      break
+                  fi
               done
+              ls *.jsonl
+        - name: Upload JSONL files as artifacts
+          uses: actions/upload-artifact@v4
+          with:
+              name: entity-recognition-results
+              path: *.jsonl
