@@ -126,6 +126,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           github-token: ${{ secrets.GH_ACTIONS_TOKEN }}
+          run-id: ${{ needs.get-scraper-run-id.outputs.RUN_ID }}
           name: sqlite-database-after-fetch-archives
       - name: Ingest labels
         run: |
