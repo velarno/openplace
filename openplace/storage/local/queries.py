@@ -1,7 +1,7 @@
 from sqlmodel import Session, select, not_
 from typing import Sequence, Optional, Iterator
 
-from openplace.storage.local.models import PostingLink, ArchiveEntry, FetchingStatus, Posting, ArchiveContent
+from openplace.storage.local.models import PostingLink, ArchiveEntry, FetchingStatus, Posting, ArchiveContent, ArchiveLabel
 from openplace.storage.local.settings import connect_to_db
 from openplace.tasks.store.types import StorageType
 
@@ -373,3 +373,24 @@ def set_archive_content_inference_done(
     session.add(archive_content)
     session.commit()
 
+@ensure_session
+def insert_archive_labels(
+    id: int,
+    label_data: list[dict],
+    session: Optional[Session] = None,
+) -> None:
+    """
+    Insert archive labels.
+    """
+    if session is None:
+        raise ValueError("Session is required")
+    for label_row in label_data:
+        session.add(ArchiveLabel(
+            archive_id=id,
+            label=label_row["label"],
+            score=label_row["score"],
+            text=label_row["text"],
+            start_position=label_row["start"],
+            end_position=label_row["stop"],
+        ))
+    session.commit()

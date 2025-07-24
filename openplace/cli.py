@@ -1,7 +1,7 @@
 import os
 
 from openplace.workflows.metadata import discover_new_postings
-from openplace.workflows.files import download_pending_files
+from openplace.workflows.files import download_pending_files, ingest_labels 
 from openplace.tasks.export.archives import export_archives as export_archives_task
 from openplace.tasks.extract.markdown import extract_all_archives_concurrently
 
@@ -167,7 +167,7 @@ def bulk_export_archive_contents(
     storage: StorageType = Option(StorageType.LOCAL, "--storage", "-S", help="Storage type", show_default=True),
     limit: int = Option(100, "--limit", "-l", help="Limit the number of archive contents to list", show_default=True),
     output_dir: str = Option(os.getcwd(), "--output-dir", "-o", help="Output directory, defaults to current working directory", show_default=True),
-    silent: bool = Option(False, "--silent", "-s", help="Silent mode", show_default=True),
+    silent: bool = Option(False, "--silent", "-s", help="Silent mode", show_default=True)
 ):
     """
     List unprocessed archive contents.
@@ -181,6 +181,23 @@ def bulk_export_archive_contents(
             output_path.write_text(archive_content.content)
             if not silent:
                 typer.echo(f"Archive content exported to {output_path}")
+    else:
+        raise ValueError(f"Storage type {storage} not supported")
+
+@app.command()
+def bulk_ingest_labels(
+    input_dir: str = Option(os.getcwd(), "--input-dir", "-i", help="Input directory", show_default=True),
+    id_source: str = Option("filename", "--id-source", "-I", help="How to guess the ID of the archive content", show_default=True),
+    storage: StorageType = Option(StorageType.LOCAL, "--storage", "-S", help="Storage type", show_default=True),
+    debug: bool = Option(False, "--debug", "-D", help="Debug mode", show_default=True),
+):
+    """
+    Bulk ingest labels.
+    """
+    if debug:
+        logging.basicConfig(level=logging.DEBUG)
+    if storage == StorageType.LOCAL:
+        ingest_labels(input_dir=input_dir, id_source=id_source)
     else:
         raise ValueError(f"Storage type {storage} not supported")
 

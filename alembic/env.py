@@ -19,7 +19,7 @@ if config.config_file_name is not None:
 from openplace.storage.local.models import (
     ArchiveContent,
     ArchiveEntry,
-    ArchiveMetadata,
+    ArchiveLabel,
     Posting,
     PostingLink,
     PostingPage,
