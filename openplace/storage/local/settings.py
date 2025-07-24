@@ -32,6 +32,7 @@ def create_tables(engine: Engine):
     """
     try:
         SQLModel.metadata.create_all(engine)
+        # TODO: add a check to see if the tables already exist, avoid logging a create if they exist
         logger.info("Successfully created all tables in the SQLite database.")
     except Exception as e:
         logger.error(f"Failed to create all tables in the SQLite database: {e}", exc_info=True)

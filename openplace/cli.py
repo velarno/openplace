@@ -22,25 +22,25 @@ app = typer.Typer(
     add_completion=False,
     no_args_is_help=True,
     add_help_option=True,
-    help="""
-    OpenPlace CLI, a tool to discover and fetch PLACE public market postings.
-    """,
-    epilog="""
-    Examples:
-    $ openplace discover-new-postings --n 10
-    $ openplace fetch-posting-files --posting-id 123
-    """
+    help="OpenPlace CLI, a tool to discover and fetch PLACE public market postings.",
 )
 
 @app.command()
 def discover(
     n: int = Option(1, "--num-postings", "-n", help="Number of postings to discover"),
     storage: StorageType = Option(StorageType.LOCAL, "--storage", "-s", help="Storage type"),
+    resume: bool = Option(False, "--resume", "-r", help="Resume from last state"),
+    ensure_n_new_links: int | None = Option(None, "--ensure-n-new-links", "-E", help="Ensure at least this number of new links"),
+    debug: bool = Option(False, "--debug", "-D", help="Debug mode", show_default=True),
     ):
     """
     Discover new PLACE public market postings.
+    If --resume is used, the iterator will start from the last state of the previous run.
+    If --ensure-n-new-links is used, the iterator will continue until the number of new links is reached.
     """
-    discover_new_postings(n, storage)
+    if debug:
+        logging.basicConfig(level=logging.DEBUG)
+    discover_new_postings(n, storage, resume, ensure_n_new_links)
 
 @app.command()
 def list_postings(

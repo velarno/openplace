@@ -1,3 +1,4 @@
+import logging
 from sqlmodel import Session, select, not_
 from typing import Sequence, Optional, Iterator
 
@@ -11,6 +12,8 @@ from typing import Callable, Any
 from pathlib import Path
 import zipfile
 import inspect
+
+logger = logging.getLogger(__name__)
 
 def ensure_session(func: Callable[..., Any]) -> Callable[..., Any]:
     """
@@ -83,7 +86,10 @@ def is_posting_present(posting_id: int, session: Optional[Session] = None) -> bo
     """
     if session is None:
         raise ValueError("Session is required")
-    return session.exec(select(Posting).where(Posting.id == posting_id)).first() is not None
+    logger.debug(f"Checking if posting {posting_id} is present in the database")
+    result = session.exec(select(Posting).where(Posting.id == posting_id)).first()
+    logger.debug(f"Result: {'Found' if result is not None else 'Not found'}")
+    return result is not None
 
 @ensure_session
 def record_archive_entries(
