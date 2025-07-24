@@ -122,6 +122,11 @@ jobs:
         with:
           github-token: ${{ secrets.GH_ACTIONS_TOKEN }}
           name: entity-recognition-results
+      - name: Download sqlite database backup
+        uses: actions/download-artifact@v4
+        with:
+          github-token: ${{ secrets.GH_ACTIONS_TOKEN }}
+          name: sqlite-database-after-fetch-archives
       - name: Ingest labels
         run: |
           ls -la
