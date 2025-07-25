@@ -7,8 +7,8 @@ from openplace.tasks.extract.types import DateContext
 
 SINGLE_NUMBER_REGEX = r'^\d+$'
 DATE_REGEX = r'(\d+)[\/\-\.](\d+)[\/\-\.](\d+)'
-LETTER_SECTION_REGEX = r'^([A-Z]+[\.\-]?)+(\d+[\.\-]?)+[\)\.]?'
-SUBSECTION_REGEX = r'^(\d+[\.\-]?)+[\)\.]? \w+$'
+LETTER_SECTION_REGEX = r'^(?:[A-Z]+[\.\-]?)*[A-Z]+(?:[\.\-]?\d+)*[\)\.]?$'
+SUBSECTION_REGEX = r'^(?:\d+[\.\-]?)*\d+[\)\.]? \w+$'
 SECTION_LITERAL_REGEX = r'^Section *([A-Z0-9]+)[\.\-\:]? *(\w+)\)?$'
 PAGE_COUNT_REGEX = r'^(\d+) *[\/\-\|] *(\d+)'
 PAGE_LITERAL_COUNT_REGEX = r'^[Pp][Aa][Gg][Ee] *(\d+) [Ss][Uu][Rr] *(\d+)'
