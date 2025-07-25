@@ -118,12 +118,21 @@ def ingest_labels(
         raise FileNotFoundError(f"Input directory {input_dir} does not exist")
     if not source_dir.is_dir():
         raise NotADirectoryError(f"Input directory {input_dir} is not a directory")
-    for file in source_dir.glob("*.jsonl"):
+    files = list(source_dir.glob("*.jsonl")) # TODO: rename to *.labels.json or *.labels.jsonl if labels are stored in jsonl format
+
+    if not files:
+        logger.error(f"No label files found in {input_dir}")
+        raise ValueError(f"No label files found in {input_dir}")
+
+    for file in files:
+        # TODO: add a proper way to handle label file format & naming
         file_id = get_id(file)
         data = json.loads(file.read_text())
-        q.insert_archive_labels(
-            id=file_id,
+        q.upsert_archive_labels(
+            archive_id=file_id,
             label_data=data,
         )
         q.set_archive_content_inference_done(file_id)
         logger.info(f"Ingested labels for file {file} with id {file_id}")
+
+    logger.info(f"Ingested {len(files)} labels from {input_dir}")

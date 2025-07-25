@@ -15,7 +15,7 @@ jobs:
         with:
           version: "latest"
           github-token: ${{ secrets.GITHUB_TOKEN }}
-      - name: sync package with uv
+      - name: sync package with uv # TODO: just before the run, check if there is a sqlite database backup in the artifacts, if so, use the --resume flag
         run: |
             uv venv
             source .venv/bin/activate

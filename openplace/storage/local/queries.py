@@ -380,8 +380,20 @@ def set_archive_content_inference_done(
     session.commit()
 
 @ensure_session
+def exists_labels_for_archive(
+    archive_id: int,
+    session: Optional[Session] = None,
+) -> bool:
+    """
+    Check if labels exist for an archive.
+    """
+    if session is None:
+        raise ValueError("Session is required")
+    return session.exec(select(ArchiveLabel).where(ArchiveLabel.archive_id == archive_id)).first() is not None
+
+@ensure_session
 def insert_archive_labels(
-    id: int,
+    archive_id: int,
     label_data: list[dict],
     session: Optional[Session] = None,
 ) -> None:
@@ -390,9 +402,10 @@ def insert_archive_labels(
     """
     if session is None:
         raise ValueError("Session is required")
+
     for label_row in label_data:
         session.add(ArchiveLabel(
-            archive_id=id,
+            archive_id=archive_id,
             label=label_row["label"],
             score=label_row["score"],
             text=label_row["text"],
@@ -400,3 +413,101 @@ def insert_archive_labels(
             end_position=label_row["stop"],
         ))
     session.commit()
+
+@ensure_session
+def get_labels_from_metadata(
+    archive_id: int,
+    label: str,
+    start_position: int,
+    end_position: int,
+    session: Optional[Session] = None,
+) -> Sequence[ArchiveLabel]:
+    """
+    Get the labels from the metadata: only fetches the entries that match the label and the position (start and end).
+
+    Args:
+        archive_id (int): The ID of the archive.
+        label (str): The label to search for.
+        start_position (int): The start position of the label.
+        end_position (int): The end position of the label.
+        session (Session): The SQLModel session.
+    """
+    if session is None:
+        raise ValueError("Session is required")
+    return session.exec(
+        select(ArchiveLabel)
+        .where(
+            ArchiveLabel.archive_id == archive_id,
+            ArchiveLabel.label == label,
+            ArchiveLabel.start_position == start_position,
+            ArchiveLabel.end_position == end_position,
+        )
+    ).all()
+
+@ensure_session
+def update_archive_labels(
+    archive_id: int,
+    label_data: list[dict],
+    session: Optional[Session] = None,
+) -> None:
+    """
+    Update archive labels. Generally gets called when the labels are already present in the database.
+
+    Args:
+        archive_id (int): The ID of the archive.
+        label_data (list[dict]): The list of label data.
+        session (Session): The SQLModel session.
+    """
+    if session is None:
+        raise ValueError("Session is required")
+    for label_row in label_data:
+        existing_labels = get_labels_from_metadata(
+            archive_id=archive_id,
+            label=label_row["label"],
+            start_position=label_row["start"],
+            end_position=label_row["stop"],
+            session=session,
+        )
+        if len(existing_labels) > 1:
+            logger.warning(f"Multiple labels found for {label_row['label']} at {label_row['start']}-{label_row['stop']}. Label instances should be unique.")
+        if existing_labels:
+            logger.info(f"Found {len(existing_labels)} labels for {label_row['label']} at {label_row['start']}-{label_row['stop']}, updating")
+            for label in existing_labels:
+                label.score = label_row["score"] # TODO: add a check to see if the score is the same as the existing score
+                label.text = label_row["text"] # TODO: add a check to see if the text is the same as the existing text
+                label.start_position = label_row["start"] # TODO: add a check to see if the start position is the same as the existing start position
+                label.end_position = label_row["stop"] # TODO: add a check to see if the end position is the same as the existing end position
+                session.add(label)
+        else:
+            logger.info(f"No labels found for {label_row['label']} at {label_row['start']}-{label_row['stop']}, inserting")
+            session.add(ArchiveLabel(
+                archive_id=archive_id,
+                label=label_row["label"],
+                score=label_row["score"],
+                text=label_row["text"],
+                start_position=label_row["start"],
+                end_position=label_row["stop"],
+            ))
+    session.commit()
+
+@ensure_session
+def upsert_archive_labels(
+    archive_id: int,
+    label_data: list[dict],
+    session: Optional[Session] = None,
+) -> None:
+    """
+    Upsert archive labels. If the archive content has any existing labels, calls the update function.
+    Otherwise, calls the insert function. Further optimization might be performed at a later stage.
+
+    Args:
+        archive_id (int): The ID of the archive.
+        label_data (list[dict]): The list of label data.
+        session (Session): The SQLModel session.
+    """
+    if session is None:
+        raise ValueError("Session is required")
+    if exists_labels_for_archive(archive_id, session):
+        update_archive_labels(archive_id, label_data, session)
+    else:
+        insert_archive_labels(archive_id, label_data, session)

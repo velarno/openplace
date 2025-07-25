@@ -8,6 +8,7 @@ This file tracks ongoing or future features.
 
 - [ ] First init of CLI takes a few seconds, try to profile & shave off some init time
 - [ ] Feature extraction scripts are fairly slow (many deps + dl model weights) => add option to deploy a server running the model once ?
+- [x] If building mecab-tools locally is required, make sure the install step is as fast as possible
 
 ### Workflows
 
@@ -24,7 +25,15 @@ Features related to PLACE files and their content, especially data cleaning / da
 - [ ] Add feature & step to process raw file contents and extract:
   - [ ] Field/Kind of service (e.g. IT/Construction/Logistics/Accounting/...)
   - [ ] Total contract value (e.g. replacing the entire town's water pipes for XYZ billion euros)
-  - [ ] Deadline or estimated due date (e.g. proposals to be sent before 04/10/2026)
+  - [x] Deadline or estimated due date (e.g. proposals to be sent before 04/10/2026)
 - [ ] Add custom writers for s3/blob remote archive storage (as of now only local FS supported)
   - [ ] Optional S3 plugin for GCP & AWS
   - [ ] Optional Azure plugin for Azure
+
+### Observability & Logging
+
+Features linked to logging & observability to make the easier to manage
+
+- [x] Add basic logging utilities from python, enable turning on debug mode from CLI
+- [ ] Format logs consistently & with sufficient information (todo: timestep, json format, trace logging)
+- [ ] Add basic compatibility with cloud providers (Azure & GCP first, then Cloudflare, AWS, ...)
