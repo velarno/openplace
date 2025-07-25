@@ -1,4 +1,5 @@
 import logging
+from datetime import datetime
 from sqlmodel import Session, select, not_
 from typing import Sequence, Optional, Iterator
 
@@ -477,6 +478,7 @@ def update_archive_labels(
                 label.text = label_row["text"] # TODO: add a check to see if the text is the same as the existing text
                 label.start_position = label_row["start"] # TODO: add a check to see if the start position is the same as the existing start position
                 label.end_position = label_row["stop"] # TODO: add a check to see if the end position is the same as the existing end position
+                label.updated_at = datetime.now()
                 session.add(label)
         else:
             logger.info(f"No labels found for {label_row['label']} at {label_row['start']}-{label_row['stop']}, inserting")
