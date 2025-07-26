@@ -16,6 +16,8 @@ jobs:
           version: "latest"
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Check if there is a sqlite database backup in the artifacts
+        env:
+          GH_TOKEN: ${{ secrets.GH_ACTIONS_TOKEN }}
         run: |
             artifact_run_id=$(gh api repos/velarno/openplace/actions/artifacts | jq '.artifacts | map(select(.name | startswith("sqlite-database-"))) | sort_by(.updated_at | fromdateiso8601) | reverse | .[0].workflow_run.id')
             echo "artifact_run_id=${artifact_run_id}"
