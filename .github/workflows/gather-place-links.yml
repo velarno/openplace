@@ -23,18 +23,25 @@ jobs:
             echo "artifact_run_id=${artifact_run_id}"
             if [ -n "${artifact_run_id}" ]; then
                 echo "Artifact run id found: ${artifact_run_id}"
-                echo "Using --resume flag"
-                openplace discover --resume -E 10 -D -n 5
+                echo "Will use --resume flag in next step"
+                echo "ARTIFACT_RUN_ID=${artifact_run_id}" >> $GITHUB_ENV
             else
-                echo "No artifact run id found, running full discovery"
-                openplace discover -E 50 -D -n 5
+                echo "No artifact run id found, will run full discovery"
+                echo "ARTIFACT_RUN_ID=NONE" >> $GITHUB_ENV
             fi
+            
       - name: sync package with uv # TODO: just before the run, check if there is a sqlite database backup in the artifacts, if so, use the --resume flag
         run: |
             uv venv
             source .venv/bin/activate
             uv sync
-            openplace discover
+            if [ "${ARTIFACT_RUN_ID}" != "NONE" ]; then
+                echo "Will use --resume flag"
+                openplace discover --resume -E 10 -D -n 5
+            else
+                echo "Will run full discovery"
+                openplace discover -E 50 -D -n 5
+            fi
             ls -la
       - name: Push sqlite database to artifacts
         uses: actions/upload-artifact@v4
