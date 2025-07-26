@@ -15,6 +15,18 @@ jobs:
         with:
           version: "latest"
           github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Check if there is a sqlite database backup in the artifacts
+        run: |
+            artifact_run_id=$(gh api repos/velarno/openplace/actions/artifacts | jq '.artifacts | map(select(.name | startswith("sqlite-database-"))) | sort_by(.updated_at | fromdateiso8601) | reverse | .[0].workflow_run.id')
+            echo "artifact_run_id=${artifact_run_id}"
+            if [ -n "${artifact_run_id}" ]; then
+                echo "Artifact run id found: ${artifact_run_id}"
+                echo "Using --resume flag"
+                openplace discover --resume -E 10 -D -n 5
+            else
+                echo "No artifact run id found, running full discovery"
+                openplace discover -E 50 -D -n 5
+            fi
       - name: sync package with uv # TODO: just before the run, check if there is a sqlite database backup in the artifacts, if so, use the --resume flag
         run: |
             uv venv
