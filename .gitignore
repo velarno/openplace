@@ -35,3 +35,4 @@ old_*.py
 *.jsonl.lzma
 *.jsonl.lz
 *.txt
+*.log
