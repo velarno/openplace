@@ -1,7 +1,8 @@
 import os
 
 from openplace.workflows.metadata import discover_new_postings
-from openplace.workflows.files import download_pending_files, ingest_labels 
+from openplace.workflows.files import download_pending_files, ingest_labels
+from openplace.workflows.extraction import run_batch_extraction
 from openplace.tasks.export.archives import export_archives as export_archives_task
 from openplace.tasks.extract.markdown import extract_all_archives_concurrently
 
@@ -200,6 +201,47 @@ def bulk_ingest_labels(
         ingest_labels(input_dir=input_dir, id_source=id_source)
     else:
         raise ValueError(f"Storage type {storage} not supported")
+
+@app.command()
+def extract_entities(
+    limit: int = Option(10, "--limit", "-l", help="Maximum number of archive contents to process", show_default=True),
+    model: str = Option("claude-3-5-sonnet-20241022", "--model", "-m", help="Model to use (e.g., 'claude-3-5-sonnet-20241022', 'gpt-4o', 'azure:deployment_name')", show_default=True),
+    api_key: str = Option(None, "--api-key", "-k", help="API key for the model (uses env vars if not provided)"),
+    concurrent: int = Option(1, "--concurrent", "-c", help="Number of concurrent extractions (be careful with API rate limits)", show_default=True),
+    storage: StorageType = Option(StorageType.LOCAL, "--storage", "-S", help="Storage type", show_default=True),
+    debug: bool = Option(False, "--debug", "-D", help="Debug mode", show_default=True),
+):
+    """
+    Extract entities from unprocessed archive contents using LLMs.
+
+    This command processes archive contents that haven't been analyzed yet and extracts
+    structured information (deadlines, budgets, requirements, etc.) using language models.
+
+    Supports:
+    - Anthropic Claude (set ANTHROPIC_API_KEY)
+    - OpenAI GPT (set OPENAI_API_KEY)
+    - Azure OpenAI (set AZURE_OPENAI_API_KEY and AZURE_OPENAI_ENDPOINT)
+
+    Examples:
+        openplace extract-entities --limit 10 --model claude-3-5-sonnet-20241022
+        openplace extract-entities --limit 5 --model gpt-4o
+        openplace extract-entities --limit 10 --model azure:gpt-4-deployment --concurrent 2
+    """
+    if debug:
+        logging.basicConfig(level=logging.DEBUG)
+
+    if storage != StorageType.LOCAL:
+        raise ValueError(f"Storage type {storage} not supported")
+
+    processed, total_labels = run_batch_extraction(
+        limit=limit,
+        model_name=model,
+        api_key=api_key,
+        concurrent=concurrent,
+    )
+
+    typer.echo(f"\n✓ Processed {processed} archive contents")
+    typer.echo(f"✓ Extracted {total_labels} total labels")
 
 def main():
     app()

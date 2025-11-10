@@ -1,0 +1,107 @@
+name: LLM Entity Extraction
+run-name: Extract entities using LLM agents (Pydantic AI)
+
+on:
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: 'Number of documents to process'
+        required: false
+        default: '100'
+      concurrent:
+        description: 'Number of concurrent extractions'
+        required: false
+        default: '2'
+      model:
+        description: 'Model to use (claude-3-5-sonnet-20241022, gpt-4o, azure:deployment)'
+        required: false
+        default: 'claude-3-5-sonnet-20241022'
+  schedule:
+    - cron: '0 */2 * * *'  # Run every 2 hours
+
+jobs:
+  get-scraper-run-id:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.GH_ACTIONS_TOKEN }}
+    outputs:
+      RUN_ID: ${{ steps.find-run-id.outputs.RUN_ID }}
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v4
+      - name: Find run id for latest sqlite export
+        id: find-run-id
+        run: |
+          export RUN_ID=$(gh run list -s success --workflow=gather-place-links.yml --json databaseId --limit 1 --jq ".[].databaseId")
+          echo "RUN_ID=${RUN_ID}" >> $GITHUB_OUTPUT
+
+  llm-entity-extraction:
+    needs: get-scraper-run-id
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v4
+
+      - name: Install the latest version of uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          version: "latest"
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Download SQLite database from artifacts
+        uses: actions/download-artifact@v4
+        with:
+          github-token: ${{ secrets.GH_ACTIONS_TOKEN }}
+          run-id: ${{ needs.get-scraper-run-id.outputs.RUN_ID }}
+          name: sqlite-database-after-fetch-archives
+
+      - name: Run LLM entity extraction
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          AZURE_OPENAI_API_KEY: ${{ secrets.AZURE_OPENAI_API_KEY }}
+          AZURE_OPENAI_ENDPOINT: ${{ secrets.AZURE_OPENAI_ENDPOINT }}
+        run: |
+          ls -la
+          uv venv
+          source .venv/bin/activate
+          uv sync
+
+          # Get parameters from workflow inputs or use defaults
+          LIMIT="${{ github.event.inputs.limit || '100' }}"
+          CONCURRENT="${{ github.event.inputs.concurrent || '2' }}"
+          MODEL="${{ github.event.inputs.model || 'claude-3-5-sonnet-20241022' }}"
+
+          echo "Running extraction with:"
+          echo "  Limit: $LIMIT"
+          echo "  Concurrent: $CONCURRENT"
+          echo "  Model: $MODEL"
+
+          # Run extraction
+          openplace extract-entities \
+            --limit $LIMIT \
+            --concurrent $CONCURRENT \
+            --model $MODEL
+
+          ls -la
+
+      - name: Upload updated SQLite database
+        uses: actions/upload-artifact@v4
+        with:
+          name: sqlite-database-with-llm-labels
+          path: openplace.db
+
+      - name: Export labels to Parquet
+        run: |
+          source .venv/bin/activate
+          openplace export-archives \
+            --output-format parquet \
+            --output-dir . \
+            --filename-date
+          ls -la *.parquet
+
+      - name: Upload Parquet export
+        uses: actions/upload-artifact@v4
+        with:
+          name: archive-labels-parquet
+          path: '*.parquet'
